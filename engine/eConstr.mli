@@ -87,6 +87,8 @@ type 'a puniverses = 'a * EInstance.t
 
 (** {5 Destructors} *)
 
+(* TODO these are not defined in the related .ml, fix? *)
+
 val kind : Evd.evar_map -> t -> (t, t, ESorts.t, EInstance.t) Constr.kind_of_term
 (** Same as {!Constr.kind} except that it expands evars and normalizes
     universes on the fly. *)
