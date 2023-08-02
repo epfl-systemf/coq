@@ -10,15 +10,17 @@ type atomic_red =
 | AtomicMatch  (* match      reduction   | match reduction *)
 | AtomicLet    (* let-in     reduction   | zeta  reduction *)
 | AtomicUnfold (* definition expansion   | delta reduction *)
+| AtomicAuto   (* automatically pick red based on location *)
 
 type atomic_red_location
 val head_let_loc : atomic_red_location
 val head_loc     : atomic_red_location
 
 val eval_interface : atomic_red -> Reductionops.e_reduction_function
-val apply_atomic :
-  Environ.env -> atomic_red -> Constr.constr -> Constr.constr
-val apply_at :
+val apply_atomic   : Environ.env -> atomic_red -> Constr.constr -> Constr.constr
+val apply_auto_at  :
+  Environ.env -> Constr.constr -> atomic_red_location -> Constr.constr
+val apply_at       :
   Constr.constr -> atomic_red_location -> (Constr.constr -> Constr.constr)
   -> Constr.constr option
 

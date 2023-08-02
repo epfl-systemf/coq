@@ -6,17 +6,19 @@ open Pputils
 
 let pr_with_occurrences pr keyword (occs,c) =
   match occs with
-    | AtLeastOneOccurrence -> hov 1 (pr c ++ spc () ++ keyword "at" ++ str" +")
-    | AllOccurrences ->
-      pr c
-    | NoOccurrences ->
-      failwith "pr_with_occurrences: no occurrences"
-    | OnlyOccurrences nl ->
-      hov 1 (pr c ++ spc () ++ keyword "at" ++ spc () ++
-                hov 0 (prlist_with_sep spc (pr_or_var int) nl))
-    | AllOccurrencesBut nl ->
-      hov 1 (pr c ++ spc () ++ keyword "at" ++ str" - " ++
-                hov 0 (prlist_with_sep spc (pr_or_var int) nl))
+  | AtLeastOneOccurrence -> hov 1 (pr c ++ spc () ++ keyword "at" ++ str" +")
+  | AllOccurrences -> pr c
+  | NoOccurrences -> failwith "pr_with_occurrences: no occurrences"
+  | OnlyOccurrences nl ->
+    hov
+      1
+      (pr c ++ spc () ++ keyword "at" ++ spc ()
+       ++ hov 0 (prlist_with_sep spc (pr_or_var int) nl))
+  | AllOccurrencesBut nl ->
+    hov
+      1
+      (pr c ++ spc () ++ keyword "at" ++ str" - "
+       ++ hov 0 (prlist_with_sep spc (pr_or_var int) nl))
 
 exception ComplexRedFlag
 
@@ -85,6 +87,7 @@ let pr_red_expr (pr_constr,pr_lconstr,pr_ref,pr_pattern) keyword = function
   | Atomic AtomicMatch  -> keyword "atomic_match"
   | Atomic AtomicLet    -> keyword "atomic_let"
   | Atomic AtomicUnfold -> keyword "atomic_unfold"
+  | Atomic AtomicAuto   -> keyword "atomic_auto"
 
 let pr_red_expr_env env sigma (pr_constr,pr_lconstr,pr_ref,pr_pattern) =
   pr_red_expr (pr_constr env sigma, pr_lconstr env sigma, pr_ref, pr_pattern env sigma)

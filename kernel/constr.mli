@@ -112,10 +112,7 @@ val mkType : Univ.Universe.t -> types
    Without cast hints, the kernel lazily reduces both sides of the cast until
    their syntactic equality is trivial.
    In particular, they are generated when using atomic reductions. *)
-(* TODO Ensure that every constr/types occurrence in Constr is covered *)
 type atomic_red_location = int list
-(* TODO Isn't atomic_red redundant w/ position? *)
-(* TODO How to interpret positions when subsequent reds modify the term? *)
 type cast_hint = {
   left_reductions : atomic_red_location list;
   right_reductions: atomic_red_location list;

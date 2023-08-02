@@ -11,4 +11,5 @@
 open Constr
 open Environ
 
-val apply_hints : env -> constr -> atomic_red_location list -> constr
+val apply_hints   : env -> constr -> atomic_red_location list -> constr
+val reduce_at_pos : env -> constr -> atomic_red_location      -> constr

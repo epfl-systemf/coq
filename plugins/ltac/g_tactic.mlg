@@ -370,6 +370,7 @@ GRAMMAR EXTEND Gram
       | IDENT "match"  -> { AtomicMatch  } (* match reduction      |match red *)
       | IDENT "let"    -> { AtomicLet    } (* let-in reduction     |zeta  red *)
       | IDENT "unfold" -> { AtomicUnfold } (* definition expansion |delta red *)
+      | IDENT "auto"   -> { AtomicAuto   } (* auto pick red based on location *)
     ] ]
   ;
   red_expr:

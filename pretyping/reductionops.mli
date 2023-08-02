@@ -120,9 +120,7 @@ end
 (************************************************************************)
 
 type reduction_function = env -> evar_map -> constr -> constr
-
 type e_reduction_function = env -> evar_map -> constr -> evar_map * constr
-
 type stack_reduction_function =
     env -> evar_map -> constr -> constr * constr list
 
@@ -262,8 +260,7 @@ val check_hyps_inclusion : env -> evar_map -> GlobRef.t -> Constr.named_context 
 
 type state = constr * Stack.t
 
-type state_reduction_function =
-    env -> evar_map -> state -> state
+type state_reduction_function = env -> evar_map -> state -> state
 
 val pr_state : env -> evar_map -> state -> Pp.t
 

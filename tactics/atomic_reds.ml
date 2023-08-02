@@ -11,6 +11,7 @@
 (* TODO In the process of being moved to kernel, will be removed from tactics
    eventually. tactics.ml should call the functions defined by the kernel. *)
 
+(* Available reductions *)
 type atomic_red =
 | AtomicFun    (* function   application | beta  reduction *)
 | AtomicFix    (* fixpoint   expansion   | fix   reduction *)
@@ -18,6 +19,21 @@ type atomic_red =
 | AtomicMatch  (* match      reduction   | match reduction *)
 | AtomicLet    (* let-in     reduction   | zeta  reduction *)
 | AtomicUnfold (* definition expansion   | delta reduction *)
+| AtomicAuto   (* automatically pick red based on location *)
+
+(* Position where to apply reductions *)
+(* TODO @mbty new location type *)
+type atomic_red_direction =
+| LetInDef
+type atomic_red_location = atomic_red_direction list
+let head_let_loc = [LetInDef]
+let head_loc     = []
+
+(* Wrappers for kernel functions *)
+let apply_auto_at env term pos =
+  (* TODO @mbty, need compatible atomic_red_location *)
+  (* Atomic.reduce_at_pos env term pos *)
+  term
 
 (* For the time being, the reductions apply to X in let abc = X in Y. They are
    meant to be used after the expression has been transformed to this form, with
@@ -139,6 +155,11 @@ let atomic_match_aux term =
     )
   | _ -> None
 
+(* Auto apply *)
+let atomic_auto_aux env term =
+  (* TODO @mbty how to detect failure? *)
+  Some (apply_auto_at env term head_loc)
+
 let rec apply_to_nth_option_aux f l n =
   match l with
   | h::t ->
@@ -151,13 +172,6 @@ let rec apply_to_nth_option_aux f l n =
 let rec apply_to_nth_option f l n =
   if (n < 0) then None else apply_to_nth_option_aux f l n
 
-type atomic_red_direction =
-| LetInDef
-type atomic_red_location = atomic_red_direction list
-let head_let_loc = [LetInDef]
-let head_loc     = []
-
-(* TODO partial implementation, see above for the incomplete fuller version *)
 let rec apply_at (term: Constr.constr) pos (f: Constr.constr -> Constr.constr) =
   match pos, Constr.kind term with
   | LetInDef::t, LetIn (name_info, value, value_type, body) ->
@@ -177,6 +191,7 @@ let apply_atomic env red term =
     | AtomicUnfold -> atomic_unfold_aux env term
     | AtomicLet    -> atomic_let_aux        term
     | AtomicMatch  -> atomic_match_aux      term
+    | AtomicAuto   -> atomic_auto_aux env   term
   in
   match res with
   | None   -> term

@@ -229,7 +229,7 @@ let warn_simpl_unfolding_modifiers =
          (fun () ->
           Pp.strbrk "The legacy simpl ignores constant unfolding modifiers.")
 
-(* TODO why Cbv but not CbvVm? *)
+(* TODO @mbty why Cbv but not CbvVm? *)
 let rec eval_red_expr env = function
 | Simpl (f, o) ->
   let () =
@@ -249,28 +249,28 @@ let rec eval_red_expr env = function
    | Atomic _) as e -> e
 
 let reduction_of_red_expr_val = function
-  (* TODO - e_reduction_function overkill for atomic
-          - interface not adapted, change accordingly?
-          - no check *)
-
+  (* TODO @mbty
+     - e_reduction_function overkill for atomic
+     - interface not adapted, change accordingly?
+     - no check *)
   | Atomic (red) -> (Atomic_reds.eval_interface red, DEFAULTcast empty_hint)
   | Red internal ->
-      if internal then (e_red try_red_product,DEFAULTcast empty_hint)
-      else (e_red red_product,DEFAULTcast empty_hint)
-  | Hnf -> (e_red hnf_constr,DEFAULTcast empty_hint)
+      if internal then (e_red try_red_product, DEFAULTcast empty_hint)
+      else (e_red red_product, DEFAULTcast empty_hint)
+  | Hnf -> (e_red hnf_constr, DEFAULTcast empty_hint)
   | Simpl (f,o) ->
      let whd_am = if simplIsCbn () then whd_cbn f else whd_simpl in
      let am = if simplIsCbn () then Cbn.norm_cbn f else simpl in
-     (contextualize (if head_style then whd_am else am) am o,DEFAULTcast empty_hint)
-  | Cbv f -> (e_red (cbv_norm_flags f),DEFAULTcast empty_hint)
+     (contextualize (if head_style then whd_am else am) am o, DEFAULTcast empty_hint)
+  | Cbv f -> (e_red (cbv_norm_flags f), DEFAULTcast empty_hint)
   | Cbn f ->
      (e_red (Cbn.norm_cbn f), DEFAULTcast empty_hint)
-  | Lazy f -> (e_red (clos_norm_flags f),DEFAULTcast empty_hint)
-  | Unfold ubinds -> (e_red (unfoldn (List.map out_with_occurrences ubinds)),DEFAULTcast empty_hint)
-  | Fold cl -> (e_red (fold_commands cl),DEFAULTcast empty_hint)
-  | Pattern lp -> (pattern_occs (List.map out_with_occurrences lp),DEFAULTcast empty_hint)
+  | Lazy f -> (e_red (clos_norm_flags f), DEFAULTcast empty_hint)
+  | Unfold ubinds -> (e_red (unfoldn (List.map out_with_occurrences ubinds)), DEFAULTcast empty_hint)
+  | Fold cl -> (e_red (fold_commands cl), DEFAULTcast empty_hint)
+  | Pattern lp -> (pattern_occs (List.map out_with_occurrences lp), DEFAULTcast empty_hint)
   | ExtraRedExpr s ->
-      (try (e_red (String.Map.find s !reduction_tab),DEFAULTcast empty_hint)
+      (try (e_red (String.Map.find s !reduction_tab), DEFAULTcast empty_hint)
       with Not_found ->
            user_err
              (str "Unknown user-defined reduction \"" ++ str s ++ str "\"."))
