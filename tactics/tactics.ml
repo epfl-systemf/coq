@@ -5430,13 +5430,6 @@ let refine ~typecheck c =
   reduce_after_refine
 
 (* Atomic reductions *)
-let atomic_no_env f =
-  Proofview.Goal.enter
-    (fun gl ->
-      let constr = EConstr.Unsafe.to_constr (Proofview.Goal.concl gl) in
-      change_concl (EConstr.of_constr (f constr))
-    )
-
 let apply_atomic_at_in_concl red pos =
   Proofview.Goal.enter
     (fun gl ->
@@ -5450,7 +5443,7 @@ let apply_atomic_at_in_concl red pos =
     )
 
 let apply_atomic_head_let_in_concl red =
-  apply_atomic_at_in_concl red Atomic_reds.default_location
+  apply_atomic_at_in_concl red Atomic_reds.head_let_loc
 
 let atomic_fun     = apply_atomic_head_let_in_concl AtomicFun
 let atomic_fix     = apply_atomic_head_let_in_concl AtomicFix
@@ -5458,7 +5451,8 @@ let atomic_cofix   = apply_atomic_head_let_in_concl AtomicCoFix
 let atomic_match   = apply_atomic_head_let_in_concl AtomicMatch
 let atomic_let     = apply_atomic_head_let_in_concl AtomicLet
 let atomic_unfold  = apply_atomic_head_let_in_concl AtomicUnfold
-let atomic_let_rev = atomic_no_env (Atomic_reds.atomic_let_wrapped)
+(* TODO @mbty remove atomic_let_rev eventually *)
+let atomic_let_rev = apply_atomic_at_in_concl AtomicLet Atomic_reds.head_loc
 
 let apply_atomic_at_in_concl_occs red occs =
   Proofview.Goal.enter

@@ -12,7 +12,8 @@ type atomic_red =
 | AtomicUnfold (* definition expansion   | delta reduction *)
 
 type atomic_red_location
-val default_location : atomic_red_location
+val head_let_loc : atomic_red_location
+val head_loc     : atomic_red_location
 
 val eval_interface : atomic_red -> Reductionops.e_reduction_function
 val apply_atomic :
@@ -20,9 +21,6 @@ val apply_atomic :
 val apply_at :
   Constr.constr -> atomic_red_location -> (Constr.constr -> Constr.constr)
   -> Constr.constr option
-
-(* TODO rm *)
-val atomic_let_wrapped : Constr.constr -> Constr.constr
 
 val apply_atomic_occs :
   Environ.env -> atomic_red -> EConstr.constr

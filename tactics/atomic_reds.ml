@@ -109,11 +109,6 @@ let atomic_let_aux term =
     | _ -> None)
   | _ -> None
 
-let atomic_let_wrapped term =
-  match atomic_let_aux term with
-  | None   -> term
-  | Some v -> v
-
 (* Match application *)
 (* TODO substnl offset? *)
 let atomic_match_aux term =
@@ -159,7 +154,8 @@ let rec apply_to_nth_option f l n =
 type atomic_red_direction =
 | LetInDef
 type atomic_red_location = atomic_red_direction list
-let default_location = [LetInDef]
+let head_let_loc = [LetInDef]
+let head_loc     = []
 
 (* TODO partial implementation, see above for the incomplete fuller version *)
 let rec apply_at (term: Constr.constr) pos (f: Constr.constr -> Constr.constr) =
