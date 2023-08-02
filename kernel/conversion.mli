@@ -18,9 +18,10 @@ exception NotConvertible
 
 type 'a kernel_conversion_function = env -> 'a -> 'a -> unit
 type 'a extended_conversion_function =
-  ?l2r:bool -> ?reds:TransparentState.t -> env ->
-  ?evars:constr evar_handler ->
-  'a -> 'a -> unit
+  ?l2r:bool -> ?reds:TransparentState.t -> env -> ?evars:constr evar_handler
+  -> 'a -> 'a -> unit
+(* TODO @mbty pass cast_hint here? Not done as of now, which makes it possible
+   to use empty_hint as the default. *)
 
 type conv_pb = CONV | CUMUL
 
@@ -66,5 +67,5 @@ val conv_leq : types extended_conversion_function
 val generic_conv : conv_pb -> l2r:bool -> constr evar_handler ->
   TransparentState.t -> (constr,'a) generic_conversion_function
 
-val default_conv     : conv_pb -> types kernel_conversion_function
+val default_conv     : conv_pb -> cast_hint -> types kernel_conversion_function
 val default_conv_leq : types kernel_conversion_function

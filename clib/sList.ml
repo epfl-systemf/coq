@@ -55,6 +55,41 @@ let rec to_list l = match l with
 
 let of_full_list l = List.fold_right cons l empty
 
+let rec nth_option l n =
+  match l with
+  | Nil -> None
+  | Cons (x, l') ->
+    if n == 0
+    then Some (Some x)
+    else nth_option l' (n - 1)
+  | Default (n', l') ->
+    if (n < n')
+    then Some (None)
+    else nth_option l' (n - n')
+
+let rec set_option l n v =
+  match l with
+  | Nil -> None
+  | Cons (x, l') ->
+    if n == 0
+    then Some (Cons (v, l'))
+    else
+      let new_tail = set_option l' (n - 1) v in
+      Option.map (fun x -> Cons (v, x)) new_tail
+  | Default (n', l') ->
+    assert (n' != 0);
+    if (n < n') then
+      if n == 0 then (
+        if n' == 1
+        then Some (Cons (v, l'))
+        else Some (Cons (v, Default (n' - 1, l')))
+      )
+      else if n == (n' - 1) then Some (Default (n' - 1, Cons (v, l')))
+      else Some (Default (n - 1, Cons (v, Default (n' - n, l'))))
+    else
+      let new_tail = set_option l' (n - n') v in
+      Option.map (fun x -> Cons (v, x)) new_tail
+
 let equal eq l1 l2 =
   let eq o1 o2 = match o1, o2 with
   | None, None -> true

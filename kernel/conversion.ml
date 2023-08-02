@@ -367,8 +367,7 @@ let rec fast_test lft1 term1 lft2 term2 = match fterm_of term1, fterm_of term2 w
 let rec ccnv cv_pb l2r infos lft1 lft2 term1 term2 cuniv =
   let fast = fast_test lft1 term1 lft2 term2 in
   if fast then cuniv
-  else
-    eqappr cv_pb l2r infos (lft1, (term1,[])) (lft2, (term2,[])) cuniv
+  else eqappr cv_pb l2r infos (lft1, (term1,[])) (lft2, (term2,[])) cuniv
 
 (* Conversion between [lft1](hd1 v1) and [lft2](hd2 v2) *)
 and eqappr cv_pb l2r infos (lft1,st1) (lft2,st2) cuniv =
@@ -873,7 +872,6 @@ let clos_gen_conv trans cv_pb l2r evars env graph univs t1 t2 =
   } in
   ccnv cv_pb l2r infos el_id el_id (inject t1) (inject t2) univs
 
-
 let check_eq univs u u' =
   if not (UGraph.check_eq_sort univs u u') then raise NotConvertible
 
@@ -889,19 +887,18 @@ let checked_sort_cmp_universes _env pb s0 s1 univs =
   check_sort_cmp_universes pb s0 s1 univs; univs
 
 let check_convert_instances ~flex:_ u u' univs =
-  if UGraph.check_eq_instances univs u u' then univs
-  else raise NotConvertible
+  if UGraph.check_eq_instances univs u u' then univs else raise NotConvertible
 
 (* general conversion and inference functions *)
 let check_inductive_instances cv_pb variance u1 u2 univs =
   let csts = get_cumulativity_constraints cv_pb variance u1 u2 in
-  if (UGraph.check_constraints csts univs) then univs
-  else raise NotConvertible
+  if (UGraph.check_constraints csts univs) then univs else raise NotConvertible
 
-let checked_universes =
-  { compare_sorts = checked_sort_cmp_universes;
-    compare_instances = check_convert_instances;
-    compare_cumul_instances = check_inductive_instances; }
+let checked_universes = {
+  compare_sorts = checked_sort_cmp_universes;
+  compare_instances = check_convert_instances;
+  compare_cumul_instances = check_inductive_instances;
+}
 
 let () =
   let conv infos tab a b =
@@ -917,7 +914,10 @@ let () =
   in
   CClosure.set_conv conv
 
-let gen_conv cv_pb ?(l2r=false) ?(reds=TransparentState.full) env ?(evars=default_evar_handler) t1 t2 =
+let gen_conv
+  cv_pb ?(l2r=false) ?(reds=TransparentState.full) env
+  ?(evars=default_evar_handler) t1 t2
+=
   let univs = Environ.universes env in
   let b =
     if cv_pb = CUMUL then leq_constr_univs univs t1 t2
@@ -925,8 +925,10 @@ let gen_conv cv_pb ?(l2r=false) ?(reds=TransparentState.full) env ?(evars=defaul
   in
     if b then ()
     else
-      let _ = clos_gen_conv reds cv_pb l2r evars env univs (univs, checked_universes) t1 t2 in
-        ()
+      let _ =
+        clos_gen_conv
+          reds cv_pb l2r evars env univs (univs, checked_universes) t1 t2
+      in ()
 
 let conv = gen_conv CONV
 let conv_leq = gen_conv CUMUL
@@ -935,9 +937,14 @@ let generic_conv cv_pb ~l2r evars reds env univs t1 t2 =
   let graph = Environ.universes env in
   let (s, _) =
     clos_gen_conv reds cv_pb l2r evars env graph univs t1 t2
-  in s
+  in
+  (* TODO @mbty empty_hint? *)
+  s
 
-let default_conv cv_pb env t1 t2 =
-    gen_conv cv_pb env t1 t2
-
-let default_conv_leq = default_conv CUMUL
+let default_conv cv_pb cast_hints env t1 t2 =
+  (* First, apply hints *)
+  let t1 = Atomic.apply_hints env t1 cast_hints.left_reductions  in
+  let t2 = Atomic.apply_hints env t2 cast_hints.right_reductions in
+  (* Only then, convert *)
+  gen_conv cv_pb env t1 t2
+let default_conv_leq = default_conv CUMUL empty_hint

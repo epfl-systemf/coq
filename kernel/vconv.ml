@@ -7,7 +7,7 @@ open Values
 open Vmvalues
 open Vmsymtable
 
-(* Test la structure des piles *)
+(* Teste la structure des piles *)
 
 let compare_zipper z1 z2 =
   match z1, z2 with

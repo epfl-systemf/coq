@@ -44,7 +44,8 @@ let whd_delta env sigma t =
   Reductionops.clos_whd_flags CClosure.all env sigma t
 
 let whd_in_concl =
-  reduct_in_concl ~cast:true ~check:false (Reductionops.whd_all, DEFAULTcast)
+  reduct_in_concl
+    ~cast:true ~check:false (Reductionops.whd_all, DEFAULTcast empty_hint)
 
 (* decompose member of equality in an applicative format *)
 

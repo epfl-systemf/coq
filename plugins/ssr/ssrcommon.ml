@@ -121,7 +121,7 @@ let rec isRHoles cl = match cl with
 let mkRApp f args = if args = [] then f else DAst.make @@ GApp (f, args)
 let mkRVar id = DAst.make @@ GRef (GlobRef.VarRef id,None)
 let mkRltacVar id = DAst.make @@ GVar (id)
-let mkRCast rc rt =  DAst.make @@ GCast (rc, Some DEFAULTcast, rt)
+let mkRCast rc rt =  DAst.make @@ GCast (rc, Some (DEFAULTcast empty_hint), rt)
 let mkRType =  DAst.make @@ GSort (UAnonymous {rigid=true})
 let mkRProp =  DAst.make @@ GSort (UNamed (None, [GProp, 0]))
 let mkRArrow rt1 rt2 = DAst.make @@ GProd (Anonymous, Explicit, rt1, rt2)
@@ -325,8 +325,10 @@ let mk_anon_id t gl_ids =
     (set s i (Char.chr (Char.code (get s i) + 1)); s) in
   Id.of_string_soft (Bytes.to_string (loop (n - 1)))
 
-let convert_concl_no_check t = Tactics.convert_concl ~cast:false ~check:false t DEFAULTcast
-let convert_concl ~check t = Tactics.convert_concl ~cast:false ~check t DEFAULTcast
+let convert_concl_no_check t =
+  Tactics.convert_concl ~cast:false ~check:false t (DEFAULTcast empty_hint)
+let convert_concl ~check t =
+  Tactics.convert_concl ~cast:false ~check t (DEFAULTcast empty_hint)
 
 (* Reduction that preserves the Prod/Let spine of the "in" tactical. *)
 
@@ -728,7 +730,7 @@ let mkCLambda ?loc name ty t =  CAst.make ?loc @@
    CLambdaN ([CLocalAssum([CAst.make ?loc name], Default Explicit, ty)], t)
 let mkCArrow ?loc ty t = CAst.make ?loc @@
    CProdN ([CLocalAssum([CAst.make Anonymous], Default Explicit, ty)], t)
-let mkCCast ?loc t ty = CAst.make ?loc @@ CCast (t, Some DEFAULTcast, ty)
+let mkCCast ?loc t ty = CAst.make ?loc @@ CCast (t, Some (DEFAULTcast empty_hint), ty)
 
 let rec isCHoles = function { CAst.v = CHole _ } :: cl -> isCHoles cl | cl -> cl = []
 let rec isCxHoles = function ({ CAst.v = CHole _ }, None) :: ch -> isCxHoles ch | _ -> false
@@ -1114,7 +1116,8 @@ let clr_of_wgen gen clrs = match gen with
   | clr, _ -> cleartac clr :: clrs
 
 
-let reduct_in_concl ~check t = Tactics.reduct_in_concl ~cast:false ~check (t, DEFAULTcast)
+let reduct_in_concl ~check t =
+  Tactics.reduct_in_concl ~cast:false ~check (t, DEFAULTcast empty_hint)
 let unfold cl =
   Proofview.tclEVARMAP >>= fun sigma ->
   let module R = Reductionops in let module F = CClosure.RedFlags in
@@ -1195,7 +1198,8 @@ let tclFULL_BETAIOTA = Goal.enter begin fun gl ->
     Genredexpr.(Lazy {
       rBeta=true; rMatch=true; rFix=true; rCofix=true;
       rZeta=false; rDelta=false; rConst=[]}) in
-  Tactics.e_reduct_in_concl ~cast:false ~check:false (r,Constr.DEFAULTcast)
+  Tactics.e_reduct_in_concl
+    ~cast:false ~check:false (r,Constr.DEFAULTcast empty_hint)
 end
 
 type intro_id =
@@ -1337,7 +1341,7 @@ let unprotecttac =
   Tacticals.onClause (fun idopt ->
     let hyploc = Option.map (fun id -> id, InHyp) idopt in
     Tactics.reduct_option ~check:false
-      (Reductionops.clos_norm_flags flags, DEFAULTcast) hyploc)
+      (Reductionops.clos_norm_flags flags, DEFAULTcast empty_hint) hyploc)
     allHypsAndConcl
 
 

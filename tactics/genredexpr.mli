@@ -10,8 +10,8 @@
 
 (** Reduction expressions *)
 
-(** The parsing produces initially a list of [red_atom] *)
-
+(** The parsing produces initially a list of [red_atom]. Unrelated to the atomic
+    tactic. *)
 type 'a red_atom =
   | FBeta
   | FMatch
@@ -22,7 +22,6 @@ type 'a red_atom =
   | FDeltaBut of 'a list
 
 (** This list of atoms is immediately converted to a [glob_red_flag] *)
-
 type 'a glob_red_flag = {
   rBeta : bool;
   rMatch : bool;
@@ -34,8 +33,8 @@ type 'a glob_red_flag = {
 }
 
 (** Generic kinds of reductions *)
-
 type ('a, 'b, 'c, 'flags) red_expr_gen0 =
+  | Atomic of Atomic_reds.atomic_red
   | Red of bool
   | Hnf
   | Simpl of 'flags * ('b, 'c) Util.union Locus.with_occurrences option

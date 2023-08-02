@@ -8,13 +8,7 @@
 (*         *     (see LICENSE file for the text of the license)         *)
 (************************************************************************)
 
-(* TODO document *)
+open Constr
+open Environ
 
-val atomic_cofix   : unit Proofview.tactic
-val atomic_fix   : unit Proofview.tactic
-val atomic_fun   : unit Proofview.tactic
-val atomic_unfold: unit Proofview.tactic
-val atomic_let   : unit Proofview.tactic
-val atomic_match : unit Proofview.tactic
-
-val atomic_let_rev: unit Proofview.tactic
+val apply_hints : env -> constr -> atomic_red_location list -> constr

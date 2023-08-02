@@ -216,7 +216,7 @@ let build_id_coercion idf_opt source poly =
   let constr_entry = (* Cast is necessary to express [val_f] is identity *)
     DefinitionEntry
       (definition_entry ~types:typ_f ~univs
-         ~inline:true (mkCast (val_f, DEFAULTcast, typ_f)))
+         ~inline:true (mkCast (val_f, DEFAULTcast empty_hint, typ_f)))
   in
   let kind = Decls.(IsDefinition IdentityCoercion) in
   let kn = declare_constant ~name ~kind constr_entry in

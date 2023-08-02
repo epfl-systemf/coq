@@ -1,0 +1,68 @@
+lib: [
+  "_build/install/default/lib/coqide-server/META"
+  "_build/install/default/lib/coqide-server/core/core.a" {"core/core.a"}
+  "_build/install/default/lib/coqide-server/core/core.cma" {"core/core.cma"}
+  "_build/install/default/lib/coqide-server/core/core.cmxa" {"core/core.cmxa"}
+  "_build/install/default/lib/coqide-server/core/document.cmi" {"core/document.cmi"}
+  "_build/install/default/lib/coqide-server/core/document.cmt" {"core/document.cmt"}
+  "_build/install/default/lib/coqide-server/core/document.cmti" {"core/document.cmti"}
+  "_build/install/default/lib/coqide-server/core/document.cmx" {"core/document.cmx"}
+  "_build/install/default/lib/coqide-server/core/document.ml" {"core/document.ml"}
+  "_build/install/default/lib/coqide-server/core/document.mli" {"core/document.mli"}
+  "_build/install/default/lib/coqide-server/dune-package"
+  "_build/install/default/lib/coqide-server/opam"
+  "_build/install/default/lib/coqide-server/protocol/interface.cmi" {"protocol/interface.cmi"}
+  "_build/install/default/lib/coqide-server/protocol/interface.cmti" {"protocol/interface.cmti"}
+  "_build/install/default/lib/coqide-server/protocol/interface.mli" {"protocol/interface.mli"}
+  "_build/install/default/lib/coqide-server/protocol/protocol.a" {"protocol/protocol.a"}
+  "_build/install/default/lib/coqide-server/protocol/protocol.cma" {"protocol/protocol.cma"}
+  "_build/install/default/lib/coqide-server/protocol/protocol.cmxa" {"protocol/protocol.cmxa"}
+  "_build/install/default/lib/coqide-server/protocol/richpp.cmi" {"protocol/richpp.cmi"}
+  "_build/install/default/lib/coqide-server/protocol/richpp.cmt" {"protocol/richpp.cmt"}
+  "_build/install/default/lib/coqide-server/protocol/richpp.cmti" {"protocol/richpp.cmti"}
+  "_build/install/default/lib/coqide-server/protocol/richpp.cmx" {"protocol/richpp.cmx"}
+  "_build/install/default/lib/coqide-server/protocol/richpp.ml" {"protocol/richpp.ml"}
+  "_build/install/default/lib/coqide-server/protocol/richpp.mli" {"protocol/richpp.mli"}
+  "_build/install/default/lib/coqide-server/protocol/serialize.cmi" {"protocol/serialize.cmi"}
+  "_build/install/default/lib/coqide-server/protocol/serialize.cmt" {"protocol/serialize.cmt"}
+  "_build/install/default/lib/coqide-server/protocol/serialize.cmti" {"protocol/serialize.cmti"}
+  "_build/install/default/lib/coqide-server/protocol/serialize.cmx" {"protocol/serialize.cmx"}
+  "_build/install/default/lib/coqide-server/protocol/serialize.ml" {"protocol/serialize.ml"}
+  "_build/install/default/lib/coqide-server/protocol/serialize.mli" {"protocol/serialize.mli"}
+  "_build/install/default/lib/coqide-server/protocol/xml_lexer.cmi" {"protocol/xml_lexer.cmi"}
+  "_build/install/default/lib/coqide-server/protocol/xml_lexer.cmt" {"protocol/xml_lexer.cmt"}
+  "_build/install/default/lib/coqide-server/protocol/xml_lexer.cmti" {"protocol/xml_lexer.cmti"}
+  "_build/install/default/lib/coqide-server/protocol/xml_lexer.cmx" {"protocol/xml_lexer.cmx"}
+  "_build/install/default/lib/coqide-server/protocol/xml_lexer.ml" {"protocol/xml_lexer.ml"}
+  "_build/install/default/lib/coqide-server/protocol/xml_lexer.mli" {"protocol/xml_lexer.mli"}
+  "_build/install/default/lib/coqide-server/protocol/xml_parser.cmi" {"protocol/xml_parser.cmi"}
+  "_build/install/default/lib/coqide-server/protocol/xml_parser.cmt" {"protocol/xml_parser.cmt"}
+  "_build/install/default/lib/coqide-server/protocol/xml_parser.cmti" {"protocol/xml_parser.cmti"}
+  "_build/install/default/lib/coqide-server/protocol/xml_parser.cmx" {"protocol/xml_parser.cmx"}
+  "_build/install/default/lib/coqide-server/protocol/xml_parser.ml" {"protocol/xml_parser.ml"}
+  "_build/install/default/lib/coqide-server/protocol/xml_parser.mli" {"protocol/xml_parser.mli"}
+  "_build/install/default/lib/coqide-server/protocol/xml_printer.cmi" {"protocol/xml_printer.cmi"}
+  "_build/install/default/lib/coqide-server/protocol/xml_printer.cmt" {"protocol/xml_printer.cmt"}
+  "_build/install/default/lib/coqide-server/protocol/xml_printer.cmti" {"protocol/xml_printer.cmti"}
+  "_build/install/default/lib/coqide-server/protocol/xml_printer.cmx" {"protocol/xml_printer.cmx"}
+  "_build/install/default/lib/coqide-server/protocol/xml_printer.ml" {"protocol/xml_printer.ml"}
+  "_build/install/default/lib/coqide-server/protocol/xml_printer.mli" {"protocol/xml_printer.mli"}
+  "_build/install/default/lib/coqide-server/protocol/xmlprotocol.cmi" {"protocol/xmlprotocol.cmi"}
+  "_build/install/default/lib/coqide-server/protocol/xmlprotocol.cmt" {"protocol/xmlprotocol.cmt"}
+  "_build/install/default/lib/coqide-server/protocol/xmlprotocol.cmti" {"protocol/xmlprotocol.cmti"}
+  "_build/install/default/lib/coqide-server/protocol/xmlprotocol.cmx" {"protocol/xmlprotocol.cmx"}
+  "_build/install/default/lib/coqide-server/protocol/xmlprotocol.ml" {"protocol/xmlprotocol.ml"}
+  "_build/install/default/lib/coqide-server/protocol/xmlprotocol.mli" {"protocol/xmlprotocol.mli"}
+]
+libexec: [
+  "_build/install/default/lib/coqide-server/core/core.cmxs" {"core/core.cmxs"}
+  "_build/install/default/lib/coqide-server/protocol/protocol.cmxs" {"protocol/protocol.cmxs"}
+]
+bin: [
+  "_build/install/default/bin/coqidetop.byte"
+  "_build/install/default/bin/coqidetop.opt"
+]
+doc: [
+  "_build/install/default/doc/coqide-server/LICENSE"
+  "_build/install/default/doc/coqide-server/README.md"
+]

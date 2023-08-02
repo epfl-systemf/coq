@@ -1038,7 +1038,7 @@ let subterm all flags (s : 'a pure_strategy) : 'a pure_strategy =
                         | Some r -> r.rew_to) args args'
                     in
                     let res = { rew_car = ty; rew_from = t;
-                                rew_to = mkApp (m, args'); rew_prf = RewCast DEFAULTcast;
+                                rew_to = mkApp (m, args'); rew_prf = RewCast (DEFAULTcast empty_hint);
                                 rew_evars = evars' }
                     in Success res
             in state, res
@@ -1416,7 +1416,7 @@ module Strategies =
             let sigma = Unification.w_unify env sigma CONV ~flags:(Unification.elim_flags ()) unfolded t in
             let c' = Reductionops.nf_evar sigma c in
               state, Success { rew_car = ty; rew_from = t; rew_to = c';
-                                  rew_prf = RewCast DEFAULTcast;
+                                  rew_prf = RewCast (DEFAULTcast empty_hint);
                                   rew_evars = (sigma, snd evars) }
           with e when CErrors.noncritical e -> state, Fail
                                          }
@@ -1531,7 +1531,7 @@ let cl_rewrite_clause_newtac ?abs ?origsigma ~progress strat clause =
   let open Proofview.Notations in
   (* For compatibility *)
   let beta = Tactics.reduct_in_concl ~cast:false ~check:false
-      (Reductionops.nf_betaiota, DEFAULTcast)
+      (Reductionops.nf_betaiota, (DEFAULTcast empty_hint))
   in
   let beta_hyp id = Tactics.reduct_in_hyp ~check:false ~reorder:false Reductionops.nf_betaiota (id, InHyp) in
   let treat sigma res state =
@@ -1570,7 +1570,7 @@ let cl_rewrite_clause_newtac ?abs ?origsigma ~progress strat clause =
             end
         | None, None ->
             Proofview.Unsafe.tclEVARS undef <*>
-            convert_concl ~cast:false ~check:false newt DEFAULTcast
+            convert_concl ~cast:false ~check:false newt (DEFAULTcast empty_hint)
   in
   Proofview.Goal.enter begin fun gl ->
     let concl = Proofview.Goal.concl gl in

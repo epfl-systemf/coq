@@ -86,7 +86,8 @@ let check_conv_error error why state poly pb env a1 a2 =
   try
     if poly then
       try
-        let () = Conversion.default_conv pb env a1 a2 in
+        (* TODO @mbty empty_hint? *)
+        let () = Conversion.default_conv pb Constr.empty_hint env a1 a2 in
         fst state
       with NotConvertible -> error (IncompatiblePolymorphism (env, a1, a2))
     else

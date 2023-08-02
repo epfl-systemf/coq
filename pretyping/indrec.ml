@@ -234,7 +234,7 @@ let mis_make_case_com dep env sigma (ind, u as pind) (mib, mip) kind =
                   (fun p -> mkProj (Projection.make p true, mkRel 1)) ps) in
         if dep then
           let ty = mkApp (mkRel 3, [| mkRel 1 |]) in
-          sigma, mkCast (term, DEFAULTcast, ty), ty
+          sigma, mkCast (term, DEFAULTcast empty_hint, ty), ty
         else
           sigma, term, mkRel 3
     in

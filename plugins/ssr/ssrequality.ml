@@ -617,7 +617,7 @@ let rwprocess_rule env dir rule =
         let np = Array.length a and i = 3 - dir_org d in
         let lhs = a.(np - i) and rhs = a.(np + i - 3) in
         let a' = Array.copy a in let _ = a'.(np - i) <- EConstr.mkVar pattern_id in
-        let r' = EConstr.mkCast (r, DEFAULTcast, EConstr.mkApp (s_eq, a')) in
+        let r' = EConstr.mkCast (r, DEFAULTcast empty_hint, EConstr.mkApp (s_eq, a')) in
         sigma, (d, r', lhs, rhs) :: rs
       | _ ->
         if red = 0 then loop d sigma r t rs 1

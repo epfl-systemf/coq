@@ -389,7 +389,10 @@ let autounfolds ids csts gl cls =
     List.fold_left (fun flags cst -> CClosure.RedFlags.(red_add flags (fCONST cst)))
       (List.fold_left (fun flags id -> CClosure.RedFlags.(red_add flags (fVAR id)))
          (CClosure.RedFlags.red_add_transparent CClosure.all TransparentState.empty) ids) csts
-  in reduct_option ~check:false (Reductionops.clos_norm_flags flags, DEFAULTcast) cls
+  in
+  reduct_option
+    ~check:false (Reductionops.clos_norm_flags flags, DEFAULTcast empty_hint)
+    cls
 
 let cons a l = a :: l
 
@@ -475,7 +478,8 @@ let autounfold_one db cl =
     if did then
       match cl with
       | Some hyp -> change_in_hyp ~check:true None (make_change_arg c') hyp
-      | None -> convert_concl ~cast:false ~check:false c' DEFAULTcast
+      | None ->
+        convert_concl ~cast:false ~check:false c' (DEFAULTcast empty_hint)
     else
       let info = Exninfo.reify () in
       Tacticals.tclFAIL ~info (str "Nothing to unfold")

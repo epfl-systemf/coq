@@ -133,8 +133,10 @@ let example_classes n =
   let sigma, the_type = Typing.type_of env sigma c_half in
   let _ = Feedback.msg_notice (Printer.pr_econstr_env env sigma c_half) in
   let proved_equality =
-    EConstr.mkCast(EConstr.mkApp (c_R, [| c_N; c_half |]), Constr.DEFAULTcast,
-      EConstr.mkApp (c_Q, [| c_N; c_half; n_half|])) in
+    EConstr.mkCast(EConstr.mkApp (c_R, [| c_N; c_half |]),
+    Constr.(DEFAULTcast empty_hint),
+    EConstr.mkApp (c_Q, [| c_N; c_half; n_half|]))
+  in
 (* This is where we force the system to compute with type classes. *)
 (* Question to coq developers: why do we pass two evd arguments to
    solve_remaining_evars? Is the choice of sigma0 relevant here? *)

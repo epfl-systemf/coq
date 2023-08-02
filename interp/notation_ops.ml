@@ -1644,9 +1644,9 @@ let group_by_type ids (terms,termlists,binders,binderlists) =
              List.map (glob_constr_of_cases_pattern (Global.env())) disjpat
            | GLocalAssum (Anonymous,bk,t) ->
              let hole = DAst.make (GHole (Evar_kinds.BinderType Anonymous,IntroAnonymous)) in
-             [DAst.make (GCast (hole, Some DEFAULTcast, t))]
+             [DAst.make (GCast (hole, Some (DEFAULTcast empty_hint), t))]
            | GLocalAssum (Name id,bk,t) ->
-             [DAst.make (GCast (DAst.make (GVar id), Some DEFAULTcast, t))]
+             [DAst.make (GCast (DAst.make (GVar id), Some (DEFAULTcast empty_hint), t))]
            | GLocalDef _ -> raise No_match) patl in
        (terms',((vars,List.flatten v),scl)::termlists',binders',binderlists')
     | NtnTypeBinderList (NtnBinderParsedAsBinder | NtnBinderParsedAsSomeBinderKind _) ->

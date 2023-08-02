@@ -53,6 +53,9 @@ val to_list : 'a t -> 'a option list
 
 val of_full_list : 'a list -> 'a t
 
+val nth_option: 'a t -> int -> ('a option) option
+val set_option: 'a t -> int -> 'a -> ('a t) option
+
 (** {5 Iterators ignoring optional values} *)
 
 module Skip :

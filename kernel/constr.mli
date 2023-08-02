@@ -105,8 +105,24 @@ val mkSet  : types
 val mkType : Univ.Universe.t -> types
 
 
-(** This defines the strategy to use for verifiying a Cast *)
-type cast_kind = VMcast | NATIVEcast | DEFAULTcast
+(* This defines hints passed to the kernel about simplifications to be applied
+   before verifying a cast automatically.
+   They should make it easier to avoid discrepancies in the validation time of
+   proofs, as since typechecking can mirror the proof term construction process.
+   Without cast hints, the kernel lazily reduces both sides of the cast until
+   their syntactic equality is trivial.
+   In particular, they are generated when using atomic reductions. *)
+(* TODO Ensure that every constr/types occurrence in Constr is covered *)
+type atomic_red_location = int list
+(* TODO Isn't atomic_red redundant w/ position? *)
+(* TODO How to interpret positions when subsequent reds modify the term? *)
+type cast_hint = {
+  left_reductions : atomic_red_location list;
+  right_reductions: atomic_red_location list;
+}
+val empty_hint : cast_hint
+(** This defines the strategy to use for verifying a Cast *)
+type cast_kind = VMcast | NATIVEcast | DEFAULTcast of cast_hint
 
 (** Constructs the term [t1::t2], i.e. the term t{_ 1} casted with the
    type t{_ 2} (that means t2 is declared as the type of t1). *)
@@ -215,12 +231,10 @@ type rec_declaration = (constr, types) prec_declaration
 type fixpoint = (constr, types) pfixpoint
 val mkFix : fixpoint -> constr
 
-(** If [funnames = [|f1,.....fn|]]
-      [typarray = [|t1,...tn|]]
-      [bodies   = [b1,.....bn]]
-   then [mkCoFix (i, (funnames, typarray, bodies))]
-   constructs the ith function of the block
-
+(** If [funnames = [|f1,.....fn|]] [typarray = [|t1,...tn|]]
+       [bodies   = [b1,.....bn]],
+    then [mkCoFix (i, (funnames, typarray, bodies))] constructs the ith function
+    of the block
     [CoFixpoint f1 = b1
      with       f2 = b2
      ...
@@ -236,62 +250,67 @@ val mkCoFix : cofixpoint -> constr
    the same order (i.e. last argument first) *)
 type 'constr pexistential = Evar.t * 'constr SList.t
 
+(* TODO Cast at pos instead of duplicating the term? *)
+
 type ('constr, 'types, 'sort, 'univs) kind_of_term =
-  | Rel       of int
-  (** Gallina-variable introduced by [forall], [fun], [let-in], [fix], or [cofix]. *)
-  | Var       of Id.t
-  (** Gallina-variable that was introduced by Vernacular-command that
-     extends the local context of the currently open section (i.e.
-     [Variable] or [Let]). *)
-  | Meta      of metavariable
-  | Evar      of 'constr pexistential
-  | Sort      of 'sort
-  | Cast      of 'constr * cast_kind * 'types
-  | Prod      of Name.t Context.binder_annot * 'types * 'types
+  | Rel of int
+  (** Gallina-variable introduced by [forall], [fun], [let-in], [fix], or
+      [cofix]. *)
+  | Var of Id.t
+  (** Gallina-variable that was introduced by Vernacular-command that extends
+      the local context of the currently open section (i.e. [Variable] or
+      [Let]). *)
+  | Meta of metavariable
+  | Evar of 'constr pexistential
+  | Sort of 'sort
+  | Cast of 'constr * cast_kind * 'types
+  | Prod of Name.t Context.binder_annot * 'types * 'types
   (** Concrete syntax ["forall A:B,C"] is represented as [Prod (A,B,C)]. *)
-  | Lambda    of Name.t Context.binder_annot * 'types * 'constr
-  (** Concrete syntax ["fun A:B => C"] is represented as [Lambda (A,B,C)].  *)
-  | LetIn     of Name.t Context.binder_annot * 'constr * 'types * 'constr
-  (** Concrete syntax ["let A:C := B in D"] is represented as [LetIn (A,B,C,D)]. *)
-  | App       of 'constr * 'constr array
-  (** Concrete syntax ["(F P1 P2 ...  Pn)"] is represented as [App (F, [|P1; P2; ...; Pn|])].
+  | Lambda of Name.t Context.binder_annot * 'types * 'constr
+  (** Concrete syntax ["fun A:B => C"] is represented as [Lambda (A,B,C)]. *)
+  | LetIn of Name.t Context.binder_annot * 'constr * 'types * 'constr
+  (** Concrete syntax ["let A:C := B in D"] is represented as
+      [LetIn (A,B,C,D)]. *)
+  | App of 'constr * 'constr array
+  (** Concrete syntax ["(F P1 P2 ... Pn)"] is represented as
+      [App (F, [|P1; P2; ...; Pn|])].
       The {!mkApp} constructor also enforces the following invariant:
       - [F] itself is not {!App}
-      - and [[|P1;..;Pn|]] is not empty. *)
-  | Const     of (Constant.t * 'univs)
-  (** Gallina-variable that was introduced by Vernacular-command that
-     extends the global environment (i.e. [Parameter], or [Axiom], or
-     [Definition], or [Theorem] etc.) *)
-  | Ind       of (inductive * 'univs)
-  (** A name of an inductive type defined by [Variant], [Inductive] or
-     [Record] Vernacular-commands. *)
+      - and [[|P1; P2; ...; Pn|]] is not empty. *)
+  | Const of (Constant.t * 'univs)
+  (** Gallina-variable that was introduced by Vernacular-command that extends
+      the global environment (i.e. [Parameter], or [Axiom], or [Definition], or
+      [Theorem] etc.) *)
+  | Ind of (inductive * 'univs)
+  (** A name of an inductive type defined by [Variant], [Inductive] or [Record]
+      Vernacular-commands. *)
   | Construct of (constructor * 'univs)
-  (** A constructor of an inductive type defined by [Variant],
-     [Inductive] or [Record] Vernacular-commands. *)
-  | Case      of case_info * 'univs * 'constr array * 'types pcase_return * 'constr pcase_invert * 'constr * 'constr pcase_branch array
+  (** A constructor of an inductive type defined by [Variant], [Inductive] or
+      [Record] Vernacular-commands. *)
+  | Case of case_info * 'univs * 'constr array * 'types pcase_return
+          * 'constr pcase_invert * 'constr * 'constr pcase_branch array
   (** [Case (ci,u,params,p,iv,c,brs)] is a [match c return p with brs]
-     expression. [c] lives in inductive [ci.ci_ind] at universe
-     instance [u] and parameters [params]. If this match has case
-     inversion (ie match on a 1 constructor SProp inductive with
-     proof relevant return type) the indices are in [iv].
-
-     The names in [p] are the names of the bound indices and
-     inductive value (ie the [in] and [as] clauses).
-
-     The names in the [brs] are the names of the variables bound in the respective branch. *)
-  | Fix       of ('constr, 'types) pfixpoint
-  | CoFix     of ('constr, 'types) pcofixpoint
-  | Proj      of Projection.t * 'constr
-  | Int       of Uint63.t
-  | Float     of Float64.t
-  | Array     of 'univs * 'constr array * 'constr * 'types
-  (** [Array (u,vals,def,t)] is an array of [vals] in type [t] with default value [def].
+     expression. [c] lives in inductive [ci.ci_ind] at universe instance [u] and
+     parameters [params]. If this match has case inversion (ie match on a 1
+     constructor SProp inductive with proof relevant return type) the indices
+     are in [iv].
+     The names in [p] are the names of the bound indices and inductive value
+     (i.e. the [in] and [as] clauses).
+     The names in the [brs] are the names of the variables bound in the
+     respective branch. *)
+  | Fix   of ('constr, 'types) pfixpoint
+  | CoFix of ('constr, 'types) pcofixpoint
+  | Proj  of Projection.t * 'constr
+  | Int   of Uint63.t
+  | Float of Float64.t
+  | Array of 'univs * 'constr array * 'constr * 'types
+  (** [Array (u,vals,def,t)] is an array of [vals] in type [t] with default
+      value [def].
       [u] is a universe containing [t]. *)
 
 (** User view of [constr]. For [App], it is ensured there is at
    least one argument and the function is not itself an applicative
    term *)
-
 val kind : constr -> (constr, types, Sorts.t, Univ.Instance.t) kind_of_term
 val of_kind : (constr, types, Sorts.t, Univ.Instance.t) kind_of_term -> constr
 
@@ -301,35 +320,34 @@ val kind_nocast_gen : ('v -> ('v, 'v, 'sort, 'univs) kind_of_term) ->
 val kind_nocast : constr -> (constr, types, Sorts.t, Univ.Instance.t) kind_of_term
 
 (** {6 Simple case analysis} *)
-val isRel  : constr -> bool
-val isRelN : int -> constr -> bool
-val isVar  : constr -> bool
-val isVarId : Id.t -> constr -> bool
-val isRef : constr -> bool
-val isRefX : GlobRef.t -> constr -> bool
-val isInd  : constr -> bool
-val isEvar : constr -> bool
-val isMeta : constr -> bool
-val isEvar_or_Meta : constr -> bool
-val isSort : constr -> bool
-val isCast : constr -> bool
-val isApp : constr -> bool
-val isLambda : constr -> bool
-val isLetIn : constr -> bool
-val isProd : constr -> bool
-val isConst : constr -> bool
-val isConstruct : constr -> bool
-val isFix : constr -> bool
-val isCoFix : constr -> bool
-val isCase : constr -> bool
-val isProj : constr -> bool
-
-val is_Prop : constr -> bool
-val is_Set  : constr -> bool
-val isprop : constr -> bool
-val is_Type : constr -> bool
-val iskind : constr -> bool
-val is_small : Sorts.t -> bool
+val isRel          : constr    -> bool
+val isRelN         : int       -> constr -> bool
+val isVar          : constr    -> bool
+val isVarId        : Id.t      -> constr -> bool
+val isRef          : constr    -> bool
+val isRefX         : GlobRef.t -> constr -> bool
+val isInd          : constr    -> bool
+val isEvar         : constr    -> bool
+val isMeta         : constr    -> bool
+val isEvar_or_Meta : constr    -> bool
+val isSort         : constr    -> bool
+val isCast         : constr    -> bool
+val isApp          : constr    -> bool
+val isLambda       : constr    -> bool
+val isLetIn        : constr    -> bool
+val isProd         : constr    -> bool
+val isConst        : constr    -> bool
+val isConstruct    : constr    -> bool
+val isFix          : constr    -> bool
+val isCoFix        : constr    -> bool
+val isCase         : constr    -> bool
+val isProj         : constr    -> bool
+val is_Prop        : constr    -> bool
+val is_Set         : constr    -> bool
+val isprop         : constr    -> bool
+val is_Type        : constr    -> bool
+val iskind         : constr    -> bool
+val is_small       : Sorts.t   -> bool
 
 (** {6 Term destructors } *)
 (** Destructor operations are partial functions and

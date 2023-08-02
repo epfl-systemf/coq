@@ -28,9 +28,8 @@ module NamedDecl = Context.Named.Declaration
 (** TODO: make this function independent of Ltac *)
 let (f_interp_redexp, interp_redexp_hook) = Hook.make ()
 
-(* Utility functions, at some point they should all disappear and
-   instead enviroment/state selection should be done at the Vernac DSL
-   level. *)
+(* Utility functions, at some point they should all disappear and instead
+   environment/state selection should be done at the Vernac DSL level. *)
 
 let get_current_or_global_context ~pstate =
   match pstate with
@@ -710,11 +709,10 @@ let vernac_start_proof ~atts kind l =
     ~scope ~kind:(Decls.IsProof kind) ~deprecation:atts.deprecated ?using:atts.using l
 
 let vernac_end_proof ~lemma ~pm = let open Vernacexpr in function
-  | Admitted ->
-    Declare.Proof.save_admitted ~pm ~proof:lemma
+  | Admitted -> Declare.Proof.save_admitted ~pm ~proof:lemma
   | Proved (opaque,idopt) ->
-    let pm, _ = Declare.Proof.save ~pm ~proof:lemma ~opaque ~idopt
-    in pm
+    let pm, _ = Declare.Proof.save ~pm ~proof:lemma ~opaque ~idopt in
+    pm
 
 let vernac_abort ~lemma:_ ~pm = pm
 

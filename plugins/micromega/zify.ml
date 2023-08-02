@@ -831,7 +831,7 @@ type prf =
 let eq_proof typ source target =
   EConstr.mkCast
     ( EConstr.mkApp (force eq_refl, [|typ; target|])
-    , DEFAULTcast
+    , DEFAULTcast empty_hint
     , EConstr.mkApp (force eq, [|typ; source; target|]) )
 
 let interp_prf evd inj source prf =

@@ -27,7 +27,9 @@ module NamedDecl = Context.Named.Declaration
 
 exception NotConvertibleVect of int
 
-let conv_leq env x y = default_conv CUMUL env x y
+let conv_leq env x y =
+  (* TODO @mbty empty_hint? *)
+  default_conv CUMUL empty_hint env x y
 
 let conv_leq_vecti env v1 v2 =
   Array.fold_left2_i
@@ -369,10 +371,9 @@ let type_of_product env _name s1 s2 =
 let check_cast env c ct k expected_type =
   try
     match k with
-    | VMcast ->
-      Vconv.vm_conv CUMUL env ct expected_type
-    | DEFAULTcast ->
-      default_conv CUMUL env ct expected_type
+    | VMcast -> Vconv.vm_conv CUMUL env ct expected_type
+    | DEFAULTcast cast_hints ->
+      default_conv CUMUL cast_hints env ct expected_type
     | NATIVEcast ->
       let sigma = Genlambda.empty_evars in
       Nativeconv.native_conv CUMUL sigma env ct expected_type
@@ -388,7 +389,9 @@ let judge_of_float env f =
 let judge_of_array env u tj defj =
   let def = defj.uj_val in
   let ty = defj.uj_type in
-  Array.iter (fun j -> check_cast env j.uj_val j.uj_type DEFAULTcast ty) tj;
+  Array.iter
+    (fun j -> check_cast env j.uj_val j.uj_type (DEFAULTcast empty_hint) ty)
+    tj;
   make_judge (mkArray(u, Array.map j_val tj, def, ty)) (mkApp (type_of_array env u, [|ty|]))
 
 (* Inductive types. *)
@@ -630,9 +633,9 @@ let check_let_annot env s x c t =
     {x with binder_relevance = r'}
 
 (* The typing machine. *)
-    (* ATTENTION : faudra faire le typage du contexte des Const,
-    Ind et Constructsi un jour cela devient des constructions
-    arbitraires et non plus des variables *)
+(* ATTENTION : faudra faire le typage du contexte des Const, Ind et Construct si
+   un jour cela devient des constructions arbitraires et non plus des variables.
+*)
 let rec execute env cstr =
   let open Context.Rel.Declaration in
   match kind cstr with
@@ -693,7 +696,7 @@ let rec execute env cstr =
       let c1', c1t = execute env c1 in
       let c2', c2s = execute_is_type env c2 in
       let name' = check_let_annot env c2s name c1' c2' in
-      let () = check_cast env c1' c1t DEFAULTcast c2' in
+      let () = check_cast env c1' c1t (DEFAULTcast empty_hint) c2' in
       let env1 = push_rel (LocalDef (name',c1',c2')) env in
       let c3', c3t = execute env1 c3 in
       let cstr = if name == name' && c1 == c1' && c2 == c2' && c3 == c3' then cstr
@@ -806,13 +809,13 @@ let rec execute env cstr =
         | _ -> assert false
       in
       let ty',tyty = execute env ty in
-      check_cast env ty' tyty DEFAULTcast (mkType (Universe.make ulev));
+      check_cast env ty' tyty (DEFAULTcast empty_hint) (mkType (Universe.make ulev));
       let def', def_ty = execute env def in
-      check_cast env def' def_ty DEFAULTcast ty';
+      check_cast env def' def_ty (DEFAULTcast empty_hint) ty';
       let ta = type_of_array env u in
       let t' = Array.Smart.map (fun x ->
         let x', xt = execute env x in
-        check_cast env x' xt DEFAULTcast ty';
+        check_cast env x' xt (DEFAULTcast empty_hint) ty';
         x') t in
       let cstr = if def'==def && t'==t && ty'==ty then cstr else mkArray(u, t',def',ty') in
       cstr, mkApp(ta, [|ty'|])

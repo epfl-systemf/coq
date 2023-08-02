@@ -33,15 +33,37 @@ open Context
 type existential_key = Evar.t
 type metavariable = int
 
-(* This defines the strategy to use for verifiying a Cast *)
-type cast_kind = VMcast | NATIVEcast | DEFAULTcast
+(* This defines hints passed to the kernel about simplifications to be applied
+   before verifying a cast automatically.
+   They should make it easier to avoid discrepancies in the validation time of
+   proofs, as since typechecking can mirror the proof term construction process.
+   Without cast hints, the kernel lazily reduces both sides of the cast until
+   their syntactic equality is trivial.
+   In particular, they are generated when using atomic reductions. *)
+type atomic_red_location = int list
+type cast_hint = {
+  left_reductions : atomic_red_location list;
+  right_reductions: atomic_red_location list;
+}
+let empty_hint = {
+  left_reductions  = [];
+  right_reductions = [];
+}
+
+(* This defines the strategy to use for verifying a Cast *)
+type cast_kind = VMcast | NATIVEcast | DEFAULTcast of cast_hint
 
 (* This defines Cases annotations *)
-type case_style = LetStyle | IfStyle | LetPatternStyle | MatchStyle | RegularStyle
-type case_printing =
-  { ind_tags : bool list; (** tell whether letin or lambda in the arity of the inductive type *)
-    cstr_tags : bool list array; (* whether each pattern var of each constructor is a let-in (true) or not (false) *)
-    style     : case_style }
+type case_style =
+  LetStyle | IfStyle | LetPatternStyle | MatchStyle | RegularStyle
+type case_printing = {
+  (** tell whether letin or lambda in the arity of the inductive type *)
+  ind_tags : bool list;
+  (* whether each pattern var of each constructor is a let-in (true) or not
+     (false) *)
+  cstr_tags : bool list array;
+  style     : case_style
+}
 
 (* INVARIANT:
  * - Array.length ci_cstr_ndecls = Array.length ci_cstr_nargs
@@ -169,12 +191,22 @@ let mkApp (f, a) =
       | App (g, cl) -> T (App (g, Array.append cl a))
       | _ -> T (App (f, a))
 
+(* TODO move elsewhere *)
+let merge_hints ch1 ch2 =
+  match ch1 with
+  | None    -> ch2
+  | Some h1 ->
+    match ch2 with
+    | None -> ch1
+    | Some h2 -> Some ((fst h1 @ fst h2), (snd h1 @ snd h2))
+
 (* Constructs the term t1::t2, i.e. the term t1 casted with the type t2 *)
 (* (that means t2 is declared as the type of t1) *)
-let mkCast (t1,k2,t2) =
+let mkCast (t1, k2, t2) =
   match kind t1 with
-  | Cast (c,k1, _) when (k1 == VMcast || k1 == NATIVEcast) && k1 == k2 -> T (Cast (c,k1,t2))
-  | _ -> T (Cast (t1,k2,t2))
+  | Cast (c, k1, _) when (k1 == VMcast || k1 == NATIVEcast) && k1 == k2 ->
+    T (Cast (c, k1, t2))
+  | _ -> T (Cast (t1, k2, t2))
 
 (* The other way around. We treat specifically smart constructors *)
 let of_kind = function
@@ -1203,10 +1235,21 @@ let term_array_table = HashsetTermArray.create 4999
 
 open Hashset.Combine
 
+let hash_atomic_reds_list ar init_hash =
+  List.fold_left (fun acc i -> combine i acc) init_hash ar
+
+let hash_atomic_reds_list_list ar =
+  List.fold_left (fun acc i -> hash_atomic_reds_list i acc) 0 ar
+
+let hash_cast_hint ch =
+  combine
+    (hash_atomic_reds_list_list (ch.left_reductions ))
+    (hash_atomic_reds_list_list (ch.right_reductions))
+
 let hash_cast_kind = function
 | VMcast -> 0
 | NATIVEcast -> 1
-| DEFAULTcast -> 2
+| DEFAULTcast ch -> combinesmall 3 (hash_cast_hint ch)
 
 (* Exported hashing fonction on constr, used mainly in plugins.
    Slight differences from [snd (hash_term t)] above: it ignores binders
@@ -1222,11 +1265,10 @@ let rec hash t =
       combinesmall 3 (combine3 hc (hash_cast_kind k) ht)
     | Prod (_, t, c) -> combinesmall 4 (combine (hash t) (hash c))
     | Lambda (_, t, c) -> combinesmall 5 (combine (hash t) (hash c))
-    | LetIn (_, b, t, c) ->
-      combinesmall 6 (combine3 (hash b) (hash t) (hash c))
+    | LetIn (_, b, t, c) -> combinesmall 6 (combine3 (hash b) (hash t) (hash c))
     | App (c,l) -> begin match kind c with
-        | Cast (c, _, _) -> hash (mkApp (c,l)) (* WTF *)
-        | _ -> combinesmall 7 (combine (hash_term_array l) (hash c))
+      | Cast (c, _, _) -> hash (mkApp (c,l)) (* WTF *)
+      | _ -> combinesmall 7 (combine (hash_term_array l) (hash c))
       end
     | Evar (e,l) ->
       combinesmall 8 (combine (Evar.hash e) (hash_term_list l))

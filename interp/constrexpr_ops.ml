@@ -667,7 +667,7 @@ let rec coerce_to_cases_pattern_expr c = CAst.map_with_loc (fun ?loc -> function
      CPatRecord (List.map (fun (r,p) -> (r,coerce_to_cases_pattern_expr p)) l)
   | CDelimiters (s,p) ->
      CPatDelimiters (s,coerce_to_cases_pattern_expr p)
-  | CCast (p,Some Constr.DEFAULTcast, t) ->
+  | CCast (p,Some Constr.(DEFAULTcast empty_hint), t) ->
      CPatCast (coerce_to_cases_pattern_expr p,t)
   | _ ->
      CErrors.user_err ?loc

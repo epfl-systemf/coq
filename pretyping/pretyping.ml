@@ -1240,7 +1240,7 @@ struct
               error_actual_type ?loc !!env sigma cj tval
                 (ConversionFailed (!!env,cty,tval))
           end
-        | None | Some DEFAULTcast ->
+        | None | Some (DEFAULTcast _) ->
           pretype (mk_tycon tval) env sigma c, tval
       in
       let v = match k with

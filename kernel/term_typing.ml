@@ -86,7 +86,8 @@ let process_universes env = function
 
 let check_primitive_type env op_t u t =
   let inft = Typeops.type_of_prim_or_type env u op_t in
-  try Conversion.default_conv Conversion.CONV env inft t
+  (* TODO @mbty empty_hint? *)
+  try Conversion.default_conv Conversion.CONV Constr.empty_hint env inft t
   with Conversion.NotConvertible ->
     Type_errors.error_incorrect_primitive env (make_judge op_t inft) t
 
@@ -171,7 +172,7 @@ let infer_definition ~sec_univs env entry =
       Vars.subst_univs_level_constr usubst j.uj_type
     | Some t ->
       let tj = Typeops.infer_type env t in
-      let _ = Typeops.judge_of_cast env j DEFAULTcast tj in
+      let _ = Typeops.judge_of_cast env j (DEFAULTcast empty_hint) tj in
       Vars.subst_univs_level_constr usubst tj.utj_val
   in
   let def = Def (Vars.subst_univs_level_constr usubst j.uj_val) in
@@ -296,7 +297,7 @@ let check_delayed (type a) (handle : a effect_handler) tyenv (body : a proof_out
   let body,env,ectx = skip_trusted_seff valid_signatures body env in
   let j = Typeops.infer env body in
   let j = unzip ectx j in
-  let _ = Typeops.judge_of_cast env j DEFAULTcast tyj in
+  let _ = Typeops.judge_of_cast env j (DEFAULTcast empty_hint) tyj in
   let () = check_section_variables env declared tyj.utj_val body in
   (* Note: non-trivial usubst only in polymorphic case *)
   let def = Vars.subst_univs_level_constr usubst j.uj_val in

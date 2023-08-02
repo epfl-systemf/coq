@@ -15,16 +15,16 @@ open Environ
 
 (** {6 Typing functions (not yet tagged as safe) }
 
-    They return unsafe judgments that are "in context" of a set of
+   They return unsafe judgments that are "in context" of a set of
    (local) universe variables (the ones that appear in the term) and
    associated constraints. In case of polymorphic definitions, these
    variables and constraints will be generalized.
 
-    When typechecking a term it may be updated to fix relevance marks.
+   When typechecking a term it may be updated to fix relevance marks.
    Do not discard the result. *)
 
-val infer      : env -> constr       -> unsafe_judgment
-val infer_type : env -> types        -> unsafe_type_judgment
+val infer      : env -> constr -> unsafe_judgment
+val infer_type : env -> types  -> unsafe_type_judgment
 
 val check_context :
   env -> Constr.rel_context -> env * Constr.rel_context

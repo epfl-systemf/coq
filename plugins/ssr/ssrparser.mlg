@@ -12,7 +12,7 @@
 
 {
 
-let defaultCast = Constr.DEFAULTcast
+let defaultCast = Constr.(DEFAULTcast empty_hint)
 open Names
 open Pp
 open Pcoq

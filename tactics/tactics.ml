@@ -351,6 +351,7 @@ let convert_concl ~cast ~check ty k =
         end else sigma
       in
       let (sigma, x) = Evarutil.new_evar env sigma ~principal:true ty in
+      (* TODO @mbty None? *)
       let ans = if not cast then x else mkCast(x,k,conclty) in
       (sigma, ans)
     end
@@ -954,7 +955,7 @@ let change_on_subterm ~check cv_pb deep t where env sigma c =
 let change_in_concl ~check occl t =
   (* No need to check in e_change_in_concl, the check is done in change_on_subterm *)
   e_change_in_concl ~cast:false ~check:false
-    ((change_on_subterm ~check Conversion.CUMUL false t occl),DEFAULTcast)
+    ((change_on_subterm ~check Conversion.CUMUL false t occl),DEFAULTcast empty_hint)
 
 let change_in_hyp ~check occl t id  =
   (* Same as above *)
@@ -990,23 +991,23 @@ let change_concl t =
   change_in_concl ~check:true None (make_change_arg t)
 
 (* Pour usage interne (le niveau User est pris en compte par reduce) *)
-let red_in_concl        = reduct_in_concl ~cast:true ~check:false (red_product,DEFAULTcast)
+let red_in_concl        = reduct_in_concl ~cast:true ~check:false (red_product,DEFAULTcast empty_hint)
 let red_in_hyp          = reduct_in_hyp ~check:false ~reorder:false red_product
-let red_option          = reduct_option ~check:false (red_product,DEFAULTcast)
-let hnf_in_concl        = reduct_in_concl ~cast:true ~check:false (hnf_constr,DEFAULTcast)
+let red_option          = reduct_option ~check:false (red_product,DEFAULTcast empty_hint)
+let hnf_in_concl        = reduct_in_concl ~cast:true ~check:false (hnf_constr,DEFAULTcast empty_hint)
 let hnf_in_hyp          = reduct_in_hyp ~check:false ~reorder:false hnf_constr
-let hnf_option          = reduct_option ~check:false (hnf_constr,DEFAULTcast)
-let simpl_in_concl      = reduct_in_concl ~cast:true ~check:false (simpl,DEFAULTcast)
+let hnf_option          = reduct_option ~check:false (hnf_constr,DEFAULTcast empty_hint)
+let simpl_in_concl      = reduct_in_concl ~cast:true ~check:false (simpl,DEFAULTcast empty_hint)
 let simpl_in_hyp        = reduct_in_hyp ~check:false ~reorder:false simpl
-let simpl_option        = reduct_option ~check:false (simpl,DEFAULTcast)
-let normalise_in_concl  = reduct_in_concl ~cast:true ~check:false (compute,DEFAULTcast)
+let simpl_option        = reduct_option ~check:false (simpl,DEFAULTcast empty_hint)
+let normalise_in_concl  = reduct_in_concl ~cast:true ~check:false (compute,DEFAULTcast empty_hint)
 let normalise_in_hyp    = reduct_in_hyp ~check:false ~reorder:false compute
-let normalise_option    = reduct_option ~check:false (compute,DEFAULTcast)
+let normalise_option    = reduct_option ~check:false (compute,DEFAULTcast empty_hint)
 let normalise_vm_in_concl = reduct_in_concl ~cast:true ~check:false (Redexpr.cbv_vm,VMcast)
-let unfold_in_concl loccname = reduct_in_concl ~cast:true ~check:false (unfoldn loccname,DEFAULTcast)
+let unfold_in_concl loccname = reduct_in_concl ~cast:true ~check:false (unfoldn loccname,DEFAULTcast empty_hint)
 let unfold_in_hyp   loccname = reduct_in_hyp ~check:false ~reorder:false (unfoldn loccname)
-let unfold_option   loccname = reduct_option ~check:false (unfoldn loccname,DEFAULTcast)
-let pattern_option l = e_reduct_option ~check:false (pattern_occs l,DEFAULTcast)
+let unfold_option   loccname = reduct_option ~check:false (unfoldn loccname,DEFAULTcast empty_hint)
+let pattern_option l = e_reduct_option ~check:false (pattern_occs l,DEFAULTcast empty_hint)
 
 (* The main reduction function *)
 
@@ -1044,7 +1045,7 @@ let reduce redexp cl =
     if is_local_flag env flags then LocalHypConv else StableHypConv
   | Unfold flags ->
     if is_local_unfold env flags then LocalHypConv else StableHypConv
-  | Red _ | Hnf | CbvVm _ | CbvNative _ -> StableHypConv
+  | Atomic _ | Red _ | Hnf | CbvVm _ | CbvNative _ -> StableHypConv
   | ExtraRedExpr _ -> StableHypConv (* Should we be that lenient ?*)
   in
   let redexp = Redexpr.eval_red_expr env redexp in
@@ -2357,7 +2358,7 @@ let constructor_tac with_evars expctdnumopt i lbind =
     let nconstr = Array.length (snd (Inductive.lookup_mind_specif env ind)).mind_consnames in
     check_number_of_constructors expctdnumopt i nconstr;
     Tacticals.tclTHENLIST [
-      convert_concl ~cast:false ~check:false redcl DEFAULTcast;
+      convert_concl ~cast:false ~check:false redcl (DEFAULTcast empty_hint);
       intros;
       constructor_core with_evars (ind, i) lbind
     ]
@@ -2387,7 +2388,7 @@ let any_constructor with_evars tacopt =
       Array.length (snd (Inductive.lookup_mind_specif env ind)).mind_consnames in
     if Int.equal nconstr 0 then error NoConstructors;
     Tacticals.tclTHENLIST [
-      convert_concl ~cast:false ~check:false redcl DEFAULTcast;
+      convert_concl ~cast:false ~check:false redcl (DEFAULTcast empty_hint);
       intros;
       any_constr ind nconstr 1 ()
     ]
@@ -2813,7 +2814,7 @@ let letin_tac_gen with_eq (id,depdecls,lastlhyp,ccl,c) ty =
     in
       Tacticals.tclTHENLIST
       [ Proofview.Unsafe.tclEVARS sigma;
-        convert_concl ~cast:false ~check:false newcl DEFAULTcast;
+        convert_concl ~cast:false ~check:false newcl (DEFAULTcast empty_hint);
         intro_gen (NamingMustBe (CAst.make id)) (decode_hyp lastlhyp) true false;
         Tacticals.tclMAP (convert_hyp ~check:false ~reorder:false) depdecls;
         eq_tac ]
@@ -3359,7 +3360,7 @@ let unfold_body x =
   let hl = List.fold_right (fun decl cl -> (NamedDecl.get_id decl, InHyp) :: cl) aft [] in
   let rfun _ _ c = replace_vars sigma [x, xval] c in
   let reducth h = reduct_in_hyp ~check:false ~reorder:false rfun h in
-  let reductc = reduct_in_concl ~cast:false ~check:false (rfun, DEFAULTcast) in
+  let reductc = reduct_in_concl ~cast:false ~check:false (rfun, DEFAULTcast empty_hint) in
   Tacticals.tclTHENLIST [Tacticals.tclMAP reducth hl; reductc]
   end
   end
@@ -5156,7 +5157,7 @@ let symmetry_red allowred =
   match with_eqn with
   | Some eq_data,_,_ ->
       Tacticals.tclTHEN
-        (convert_concl ~cast:false ~check:false concl DEFAULTcast)
+        (convert_concl ~cast:false ~check:false concl (DEFAULTcast empty_hint))
         (Tacticals.pf_constr_of_global eq_data.sym >>= apply)
   | None,eq,eq_kind -> prove_symmetry eq eq_kind
   end
@@ -5249,7 +5250,7 @@ let transitivity_red allowred t =
   match with_eqn with
   | Some eq_data,_,_ ->
       Tacticals.tclTHEN
-        (convert_concl ~cast:false ~check:false concl DEFAULTcast)
+        (convert_concl ~cast:false ~check:false concl (DEFAULTcast empty_hint))
         (match t with
           | None -> Tacticals.pf_constr_of_global eq_data.trans >>= eapply
           | Some t -> Tacticals.pf_constr_of_global eq_data.trans >>= fun trans -> apply_list [trans; t])
@@ -5422,8 +5423,56 @@ let reduce_after_refine =
     let flags = RedFlags.red_add_transparent allnolet TransparentState.empty in
     clos_norm_flags flags env t
   in
-  reduct_in_concl ~cast:false ~check:false (redfun,DEFAULTcast)
+  reduct_in_concl ~cast:false ~check:false (redfun,DEFAULTcast empty_hint)
 
 let refine ~typecheck c =
   Refine.refine ~typecheck c <*>
   reduce_after_refine
+
+(* Atomic reductions *)
+let atomic_no_env f =
+  Proofview.Goal.enter
+    (fun gl ->
+      let constr = EConstr.Unsafe.to_constr (Proofview.Goal.concl gl) in
+      change_concl (EConstr.of_constr (f constr))
+    )
+
+let apply_atomic_at_in_concl red pos =
+  Proofview.Goal.enter
+    (fun gl ->
+      let env    = Proofview.Goal.env gl                              in
+      let constr = EConstr.Unsafe.to_constr (Proofview.Goal.concl gl) in
+      match
+        Atomic_reds.apply_at constr pos (Atomic_reds.apply_atomic env red)
+      with
+      | None   -> Proofview.tclUNIT ()
+      | Some v -> change_concl (EConstr.of_constr v)
+    )
+
+let apply_atomic_head_let_in_concl red =
+  apply_atomic_at_in_concl red Atomic_reds.default_location
+
+let atomic_fun     = apply_atomic_head_let_in_concl AtomicFun
+let atomic_fix     = apply_atomic_head_let_in_concl AtomicFix
+let atomic_cofix   = apply_atomic_head_let_in_concl AtomicCoFix
+let atomic_match   = apply_atomic_head_let_in_concl AtomicMatch
+let atomic_let     = apply_atomic_head_let_in_concl AtomicLet
+let atomic_unfold  = apply_atomic_head_let_in_concl AtomicUnfold
+let atomic_let_rev = atomic_no_env (Atomic_reds.atomic_let_wrapped)
+
+let apply_atomic_at_in_concl_occs red occs =
+  Proofview.Goal.enter
+    (fun gl ->
+      let env      = Proofview.Goal.env gl in
+      let evar_map = Proofview.Goal.sigma gl in
+      let constr   = EConstr.Unsafe.to_constr (Proofview.Goal.concl gl) in
+      let constr'  =
+        Atomic_reds.apply_atomic_occs
+          env red (EConstr.of_constr constr) occs evar_map
+      in
+      match constr' with
+      | None   -> Proofview.tclUNIT ()
+      | Some x -> change_concl x
+    )
+
+let atomic_let_at occs = apply_atomic_at_in_concl_occs AtomicLet occs

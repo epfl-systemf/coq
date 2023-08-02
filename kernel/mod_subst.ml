@@ -25,8 +25,8 @@ open Constr
    Equiv gives the canonical name in the given context. *)
 
 type delta_hint =
-  | Inline of int * constr Univ.univ_abstracted option
-  | Equiv of KerName.t
+| Inline of int * constr Univ.univ_abstracted option
+| Equiv of KerName.t
 
 (* NB: earlier constructor Prefix_equiv of ModPath.t
    is now stored in a separate table, see Deltamap.t below *)
@@ -84,9 +84,9 @@ let is_empty_subst = Umap.is_empty
 (* <debug> *)
 
 let string_of_hint = function
-  | Inline (_,Some _) -> "inline(Some _)"
-  | Inline _ -> "inline()"
-  | Equiv kn -> KerName.to_string kn
+| Inline (_,Some _) -> "inline(Some _)"
+| Inline _ -> "inline()"
+| Equiv kn -> KerName.to_string kn
 
 let debug_string_of_delta resolve =
   let kn_to_string kn hint l =
@@ -144,8 +144,8 @@ let mp_in_delta mp = Deltamap.mem_mp mp
 let kn_in_delta kn resolver =
   try
     match Deltamap.find_kn kn resolver with
-      | Equiv _ -> true
-      | Inline _ -> false
+    | Equiv _ -> true
+    | Inline _ -> false
   with Not_found -> false
 
 let con_in_delta con resolver = kn_in_delta (Constant.user con) resolver
@@ -157,8 +157,8 @@ let mp_of_delta resolve mp =
 let find_prefix resolve mp =
   let rec sub_mp = function
     | MPdot(mp,l) as mp_sup ->
-        (try Deltamap.find_mp mp_sup resolve
-         with Not_found -> MPdot(sub_mp mp,l))
+      (try Deltamap.find_mp mp_sup resolve
+       with Not_found -> MPdot(sub_mp mp,l))
     | p -> Deltamap.find_mp p resolve
   in
   try sub_mp mp with Not_found -> mp
@@ -170,16 +170,14 @@ exception Change_equiv_to_inline of (int * constr Univ.univ_abstracted)
 let solve_delta_kn resolve kn =
   try
     match Deltamap.find_kn kn resolve with
-      | Equiv kn1 -> kn1
-      | Inline (lev, Some c) ->	raise (Change_equiv_to_inline (lev,c))
-      | Inline (_, None) -> raise Not_found
+    | Equiv kn1 -> kn1
+    | Inline (lev, Some c) -> raise (Change_equiv_to_inline (lev,c))
+    | Inline (_, None) -> raise Not_found
   with Not_found ->
     let mp,l = KerName.repr kn in
     let new_mp = find_prefix resolve mp in
-    if mp == new_mp then
-      kn
-    else
-      KerName.make new_mp l
+    if mp == new_mp then kn
+    else KerName.make new_mp l
 
 let kn_of_delta resolve kn =
   try solve_delta_kn resolve kn
@@ -205,19 +203,19 @@ let mind_of_deltas_kn resolve1 resolve2 kn =
 
 let inline_of_delta inline resolver =
   match inline with
-    | None -> []
-    | Some inl_lev ->
-      let extract kn hint l =
-        match hint with
-          | Inline (lev,_) -> if lev <= inl_lev then (lev,kn)::l else l
-          | _ -> l
-      in
-      Deltamap.fold_kn extract resolver []
+  | None -> []
+  | Some inl_lev ->
+    let extract kn hint l =
+      match hint with
+      | Inline (lev,_) -> if lev <= inl_lev then (lev,kn)::l else l
+      | _ -> l
+    in
+    Deltamap.fold_kn extract resolver []
 
 let search_delta_inline resolve kn1 kn2 =
   let find kn = match Deltamap.find_kn kn resolve with
-    | Inline (_,o) -> o
-    | Equiv _ -> raise Not_found
+  | Inline (_,o) -> o
+  | Equiv _ -> raise Not_found
   in
   try find kn1
   with Not_found ->
@@ -231,34 +229,31 @@ let subst_mp_opt subst mp = (* 's like subst *)
   match mp with
     | MPfile _ | MPbound _ -> Umap.find mp subst
     | MPdot (mp1,l) as mp2 ->
-        begin
-          try Umap.find mp2 subst
-          with Not_found ->
-            let mp1',resolve = aux mp1 in
-            MPdot (mp1',l),resolve
-        end
+      begin
+        try Umap.find mp2 subst
+        with Not_found ->
+          let mp1',resolve = aux mp1 in
+          MPdot (mp1',l),resolve
+      end
  in
  try Some (aux mp) with Not_found -> None
 
 let subst_mp subst mp =
- match subst_mp_opt subst mp with
-    None -> mp
+  match subst_mp_opt subst mp with
+  | None -> mp
   | Some (mp',_) -> mp'
 
 let subst_kn_delta subst kn =
- let mp,l = KerName.repr kn in
+  let mp,l = KerName.repr kn in
   match subst_mp_opt subst mp with
-     Some (mp',resolve) ->
-      solve_delta_kn resolve (KerName.make mp' l)
-   | None -> kn
-
+  | Some (mp',resolve) -> solve_delta_kn resolve (KerName.make mp' l)
+  | None -> kn
 
 let subst_kn subst kn =
- let mp,l = KerName.repr kn in
+  let mp,l = KerName.repr kn in
   match subst_mp_opt subst mp with
-     Some (mp',_) ->
-      (KerName.make mp' l)
-   | None -> kn
+  | Some (mp',_) -> (KerName.make mp' l)
+  | None -> kn
 
 exception No_subst
 
@@ -266,10 +261,10 @@ let subst_dual_mp subst mp1 mp2 =
   let o1 = subst_mp_opt subst mp1 in
   let o2 = if mp1 == mp2 then o1 else subst_mp_opt subst mp2 in
   match o1, o2 with
-    | None, None -> raise No_subst
-    | Some (mp1',resolve), None -> mp1', mp2, resolve, true
-    | None, Some (mp2',resolve) -> mp1, mp2', resolve, false
-    | Some (mp1',_), Some (mp2',resolve) -> mp1', mp2', resolve, false
+  | None, None -> raise No_subst
+  | Some (mp1',resolve), None -> mp1', mp2, resolve, true
+  | None, Some (mp2',resolve) -> mp1, mp2', resolve, false
+  | Some (mp1',_), Some (mp2',resolve) -> mp1', mp2', resolve, false
 
 let progress f x ~orelse =
   let y = f x in
@@ -290,15 +285,14 @@ let subst_mind subst mind =
 
 let subst_ind subst (ind,i as indi) =
   let ind' = subst_mind subst ind in
-    if ind' == ind then indi else ind',i
+  if ind' == ind then indi else ind',i
 
 let subst_constructor subst (ind,j as ref) =
   let ind' = subst_ind subst ind in
   if ind==ind' then ref
   else (ind',j)
 
-let subst_pind subst (ind,u) =
-  (subst_ind subst ind, u)
+let subst_pind subst (ind,u) = (subst_ind subst ind, u)
 
 let subst_con0 subst cst =
   let mpu,l = KerName.repr (Constant.user cst) in
@@ -311,24 +305,16 @@ let subst_con0 subst cst =
   let cst' = Constant.make knu knc' in
   cst', search_delta_inline resolve knu knc
 
-let subst_con subst cst =
-  try subst_con0 subst cst
-  with No_subst -> cst, None
+let subst_con subst cst = try subst_con0 subst cst with No_subst -> cst, None
 
 let subst_pcon subst (con,u as pcon) =
-  try let con', _can = subst_con0 subst con in
-        con',u
-  with No_subst -> pcon
+  try let con', _can = subst_con0 subst con in con',u with No_subst -> pcon
 
 let subst_constant subst con =
-  try fst (subst_con0 subst con)
-  with No_subst -> con
+  try fst (subst_con0 subst con) with No_subst -> con
 
-let subst_proj_repr subst p =
-  Projection.Repr.map (subst_mind subst) p
-
-let subst_proj subst p =
-  Projection.map (subst_mind subst) p
+let subst_proj_repr subst p = Projection.Repr.map (subst_mind subst) p
+let subst_proj subst p = Projection.map (subst_mind subst) p
 
 let subst_retro_action subst action =
   let open Retroknowledge in
@@ -343,79 +329,79 @@ let subst_retro_action subst action =
 let rec map_kn f f' c =
   let func = map_kn f f' in
     match kind c with
-      | Const kn -> (try f' kn with No_subst -> c)
-      | Proj (p,t) ->
-          let p' = Projection.map f p in
-          let t' = func t in
-            if p' == p && t' == t then c
-            else mkProj (p', t')
-      | Ind ((kn,i),u) ->
-          let kn' = f kn in
-          if kn'==kn then c else mkIndU ((kn',i),u)
-      | Construct (((kn,i),j),u) ->
-          let kn' = f kn in
-          if kn'==kn then c else mkConstructU (((kn',i),j),u)
-      | Case (ci,u,pms,p,iv,ct,l) ->
-          let ci_ind =
-            let (kn,i) = ci.ci_ind in
-            let kn' = f kn in
-            if kn'==kn then ci.ci_ind else kn',i
-          in
-          let f_ctx (nas, c as d) =
-            let c' = func c in
-            if c' == c then d else (nas, c')
-          in
-          let pms' = Array.Smart.map func pms in
-          let p' = f_ctx p in
-          let iv' = map_invert func iv in
-          let ct' = func ct in
-          let l' = Array.Smart.map f_ctx l in
-            if (ci.ci_ind==ci_ind && pms'==pms && p'==p && iv'==iv
-                && l'==l && ct'==ct)then c
-            else
-              mkCase ({ci with ci_ind = ci_ind}, u,
-                      pms',p',iv',ct', l')
-      | Cast (ct,k,t) ->
-          let ct' = func ct in
-          let t'= func t in
-            if (t'==t && ct'==ct) then c
-            else mkCast (ct', k, t')
-      | Prod (na,t,ct) ->
-          let ct' = func ct in
-          let t'= func t in
-            if (t'==t && ct'==ct) then c
-            else mkProd (na, t', ct')
-      | Lambda (na,t,ct) ->
-          let ct' = func ct in
-          let t'= func t in
-            if (t'==t && ct'==ct) then c
-            else mkLambda (na, t', ct')
-      | LetIn (na,b,t,ct) ->
-          let ct' = func ct in
-          let t'= func t in
-          let b'= func b in
-            if (t'==t && ct'==ct && b==b') then c
-            else mkLetIn (na, b', t', ct')
-      | App (ct,l) ->
-          let ct' = func ct in
-          let l' = Array.Smart.map func l in
-            if (ct'== ct && l'==l) then c
-            else mkApp (ct',l')
-      | Evar (e,l) ->
-          let l' = SList.Smart.map func l in
-            if (l'==l) then c
-            else mkEvar (e,l')
-      | Fix (ln,(lna,tl,bl)) ->
-          let tl' = Array.Smart.map func tl in
-          let bl' = Array.Smart.map func bl in
-            if (bl == bl'&& tl == tl') then c
-            else mkFix (ln,(lna,tl',bl'))
-      | CoFix(ln,(lna,tl,bl)) ->
-          let tl' = Array.Smart.map func tl in
-          let bl' = Array.Smart.map func bl in
-            if (bl == bl'&& tl == tl') then c
-            else mkCoFix (ln,(lna,tl',bl'))
-      | _ -> c
+    | Const kn -> (try f' kn with No_subst -> c)
+    | Proj (p,t) ->
+      let p' = Projection.map f p in
+      let t' = func t in
+        if p' == p && t' == t then c
+        else mkProj (p', t')
+    | Ind ((kn,i),u) ->
+      let kn' = f kn in
+      if kn'==kn then c else mkIndU ((kn',i),u)
+    | Construct (((kn,i),j),u) ->
+      let kn' = f kn in
+      if kn'==kn then c else mkConstructU (((kn',i),j),u)
+    | Case (ci,u,pms,p,iv,ct,l) ->
+      let ci_ind =
+        let (kn,i) = ci.ci_ind in
+        let kn' = f kn in
+        if kn'==kn then ci.ci_ind else kn',i
+      in
+      let f_ctx (nas, c as d) =
+        let c' = func c in
+        if c' == c then d else (nas, c')
+      in
+      let pms' = Array.Smart.map func pms in
+      let p' = f_ctx p in
+      let iv' = map_invert func iv in
+      let ct' = func ct in
+      let l' = Array.Smart.map f_ctx l in
+        if (ci.ci_ind==ci_ind && pms'==pms && p'==p && iv'==iv
+            && l'==l && ct'==ct)then c
+        else
+          mkCase ({ci with ci_ind = ci_ind}, u,
+                  pms',p',iv',ct', l')
+    | Cast (ct,k,t) ->
+      let ct' = func ct in
+      let t'= func t in
+        if (t'==t && ct'==ct) then c
+        else mkCast (ct', k, t')
+    | Prod (na,t,ct) ->
+      let ct' = func ct in
+      let t'= func t in
+        if (t'==t && ct'==ct) then c
+        else mkProd (na, t', ct')
+    | Lambda (na,t,ct) ->
+      let ct' = func ct in
+      let t'= func t in
+        if (t'==t && ct'==ct) then c
+        else mkLambda (na, t', ct')
+    | LetIn (na,b,t,ct) ->
+      let ct' = func ct in
+      let t'= func t in
+      let b'= func b in
+        if (t'==t && ct'==ct && b==b') then c
+        else mkLetIn (na, b', t', ct')
+    | App (ct,l) ->
+      let ct' = func ct in
+      let l' = Array.Smart.map func l in
+        if (ct'== ct && l'==l) then c
+        else mkApp (ct',l')
+    | Evar (e,l) ->
+      let l' = SList.Smart.map func l in
+        if (l'==l) then c
+        else mkEvar (e,l')
+    | Fix (ln,(lna,tl,bl)) ->
+      let tl' = Array.Smart.map func tl in
+      let bl' = Array.Smart.map func bl in
+        if (bl == bl'&& tl == tl') then c
+        else mkFix (ln,(lna,tl',bl'))
+    | CoFix(ln,(lna,tl,bl)) ->
+      let tl' = Array.Smart.map func tl in
+      let bl' = Array.Smart.map func bl in
+        if (bl == bl'&& tl == tl') then c
+        else mkCoFix (ln,(lna,tl',bl'))
+    | _ -> c
 
 let subst_mps subst c =
   let subst_pcon_term subst (con,u) =

@@ -1,0 +1,10 @@
+lib: [
+  "_build/install/default/lib/coq/META"
+  "_build/install/default/lib/coq/dune-package"
+  "_build/install/default/lib/coq/opam"
+]
+doc: [
+  "_build/install/default/doc/coq/LICENSE"
+  "_build/install/default/doc/coq/README.md"
+  "_build/install/default/doc/coq/odoc-pages/index.mld" {"odoc-pages/index.mld"}
+]

@@ -79,6 +79,12 @@ let pr_red_expr (pr_constr,pr_lconstr,pr_ref,pr_pattern) keyword = function
     keyword "vm_compute" ++ pr_opt (pr_with_occurrences (pr_union pr_ref pr_pattern) keyword) o
   | CbvNative o ->
     keyword "native_compute" ++ pr_opt (pr_with_occurrences (pr_union pr_ref pr_pattern) keyword) o
+  | Atomic AtomicFun    -> keyword "atomic_fun"
+  | Atomic AtomicFix    -> keyword "atomic_fix"
+  | Atomic AtomicCoFix  -> keyword "atomic_cofix"
+  | Atomic AtomicMatch  -> keyword "atomic_match"
+  | Atomic AtomicLet    -> keyword "atomic_let"
+  | Atomic AtomicUnfold -> keyword "atomic_unfold"
 
 let pr_red_expr_env env sigma (pr_constr,pr_lconstr,pr_ref,pr_pattern) =
   pr_red_expr (pr_constr env sigma, pr_lconstr env sigma, pr_ref, pr_pattern env sigma)

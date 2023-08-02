@@ -444,7 +444,7 @@ let compute_rel_aliases var_aliases rels sigma =
                     try push_alias (Int.Map.find (p+n) aliases) alias
                     with Not_found -> init_var_alias_chain alias)
                | _ ->
-                  init_term_alias_chain (Alias.lift n (Alias.make @@ mkCast(t,DEFAULTcast, u)))
+                  init_term_alias_chain (Alias.lift n (Alias.make @@ mkCast(t,DEFAULTcast empty_hint, u)))
              in
              Int.Map.add n aliases_of_n aliases
            | LocalAssum _ -> aliases)

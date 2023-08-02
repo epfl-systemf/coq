@@ -19,6 +19,7 @@ open Names
 open Namegen
 open Tacexpr
 open Genredexpr
+open Atomic_reds
 open Constrexpr
 open Libnames
 open Tok
@@ -362,8 +363,18 @@ GRAMMAR EXTEND Gram
       | d = delta_flag -> { all_with d }
     ] ]
   ;
+  red_type:
+    [ [ IDENT "fun"    -> { AtomicFun    } (* function application |beta  red *)
+      | IDENT "fix"    -> { AtomicFix    } (* fixpoint expansion   |fix   red *)
+      | IDENT "cofix"  -> { AtomicCoFix  } (* cofixpoint expansion |cofix red *)
+      | IDENT "match"  -> { AtomicMatch  } (* match reduction      |match red *)
+      | IDENT "let"    -> { AtomicLet    } (* let-in reduction     |zeta  red *)
+      | IDENT "unfold" -> { AtomicUnfold } (* definition expansion |delta red *)
+    ] ]
+  ;
   red_expr:
-    [ [ IDENT "red" -> { Red false }
+    [ [ IDENT "atomic"; red = red_type -> { Atomic red }
+      | IDENT "red" -> { Red false }
       | IDENT "hnf" -> { Hnf }
       | IDENT "simpl"; d = delta_flag; po = OPT ref_or_pattern_occ -> { Simpl (all_with d,po) }
       | IDENT "cbv"; s = strategy_flag -> { Cbv s }

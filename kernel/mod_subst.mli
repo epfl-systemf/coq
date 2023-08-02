@@ -110,32 +110,18 @@ val debug_pr_delta : delta_resolver -> Pp.t
 (**/**)
 
 (** [subst_mp sub mp] guarantees that whenever the result of the
-   substitution is structutally equal [mp], it is equal by pointers
+   substitution is structurally equal [mp], it is equal by pointers
    as well [==] *)
 
-val subst_mp :
-  substitution -> ModPath.t -> ModPath.t
-
-val subst_mind :
-  substitution -> MutInd.t -> MutInd.t
-
-val subst_ind :
-  substitution -> inductive -> inductive
-
-val subst_constructor :
-  substitution -> constructor -> constructor
-
+val subst_mp : substitution -> ModPath.t -> ModPath.t
+val subst_mind : substitution -> MutInd.t -> MutInd.t
+val subst_ind : substitution -> inductive -> inductive
+val subst_constructor : substitution -> constructor -> constructor
 val subst_pind : substitution -> pinductive -> pinductive
-
-val subst_kn :
-  substitution -> KerName.t -> KerName.t
-
+val subst_kn : substitution -> KerName.t -> KerName.t
 val subst_con :
   substitution -> Constant.t -> Constant.t * constr Univ.univ_abstracted option
-
-val subst_pcon :
-  substitution -> pconstant -> pconstant
-
+val subst_pcon : substitution -> pconstant -> pconstant
 val subst_constant :
   substitution -> Constant.t -> Constant.t
 

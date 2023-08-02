@@ -10,7 +10,7 @@
 
 (** Vernacular Extension data *)
 
-(* A vernac classifier provides information about the exectuion of a
+(* A vernac classifier provides information about the execution of a
    command:
 
    - vernac_when: encodes if the vernac may alter the parser [thus

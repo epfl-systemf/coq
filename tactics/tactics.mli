@@ -151,7 +151,7 @@ type change_arg = patvar_map -> env -> evar_map -> evar_map * constr
 val make_change_arg   : constr -> change_arg
 val reduct_in_hyp     : check:bool -> reorder:bool -> tactic_reduction -> hyp_location -> unit Proofview.tactic
 val reduct_option     : check:bool -> tactic_reduction * cast_kind -> goal_location -> unit Proofview.tactic
-val reduct_in_concl : cast:bool -> check:bool -> tactic_reduction * cast_kind -> unit Proofview.tactic
+val reduct_in_concl   : cast:bool -> check:bool -> tactic_reduction * cast_kind -> unit Proofview.tactic
 val e_reduct_in_concl : cast:bool -> check:bool -> e_tactic_reduction * cast_kind -> unit Proofview.tactic
 val change_in_concl   : check:bool -> (occurrences * constr_pattern) option -> change_arg -> unit Proofview.tactic
 val change_concl      : constr -> unit Proofview.tactic
@@ -431,11 +431,11 @@ val with_set_strategy :
 module Simple : sig
   (** Simplified version of some of the above tactics *)
 
-  val intro           : Id.t -> unit Proofview.tactic
-  val apply  : constr -> unit Proofview.tactic
-  val eapply : constr -> unit Proofview.tactic
-  val elim   : constr -> unit Proofview.tactic
-  val case   : constr -> unit Proofview.tactic
+  val intro    : Id.t -> unit Proofview.tactic
+  val apply    : constr -> unit Proofview.tactic
+  val eapply   : constr -> unit Proofview.tactic
+  val elim     : constr -> unit Proofview.tactic
+  val case     : constr -> unit Proofview.tactic
   val apply_in : Id.t -> constr -> unit Proofview.tactic
 
 end
@@ -448,3 +448,12 @@ val refine : typecheck:bool -> (evar_map -> evar_map * constr) -> unit Proofview
 
 val reduce_after_refine : unit Proofview.tactic
 (** The reducing tactic called after {!refine}. *)
+
+(** {6 Atomic reductions} *)
+val atomic_cofix   : unit Proofview.tactic
+val atomic_fix     : unit Proofview.tactic
+val atomic_fun     : unit Proofview.tactic
+val atomic_unfold  : unit Proofview.tactic
+val atomic_let     : unit Proofview.tactic
+val atomic_match   : unit Proofview.tactic
+val atomic_let_rev : unit Proofview.tactic

@@ -485,7 +485,6 @@ sig
 
   val debug_print : t -> Pp.t
   (** Same as [print], but outputs extra information related to debug. *)
-
 end
 
 module Mindset : CSig.SetS with type elt = MutInd.t
@@ -496,13 +495,12 @@ module Ind :
 sig
   (** Designation of a (particular) inductive type. *)
   type t = MutInd.t      (* the name of the inductive type *)
-         * int           (* the position of this inductive type
-                                    within the block of mutually-recursive inductive types.
-                                    BEWARE: indexing starts from 0. *)
+         * int           (* the position of this inductive type within the block
+                            of mutually-recursive inductive types.
+                            BEWARE: indexing starts from 0. *)
   val modpath : t -> ModPath.t
 
   include QNameS with type t := t
-
 end
 
 type inductive = Ind.t

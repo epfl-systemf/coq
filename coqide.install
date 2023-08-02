@@ -1,0 +1,24 @@
+lib: [
+  "_build/install/default/lib/coqide/META"
+  "_build/install/default/lib/coqide/dune-package"
+  "_build/install/default/lib/coqide/opam"
+]
+bin: [
+  "_build/install/default/bin/coqide"
+]
+share_root: [
+  "_build/install/default/share/coq/coq-ssreflect.lang" {"coq/coq-ssreflect.lang"}
+  "_build/install/default/share/coq/coq.lang" {"coq/coq.lang"}
+  "_build/install/default/share/coq/coq.png" {"coq/coq.png"}
+  "_build/install/default/share/coq/coq_style.xml" {"coq/coq_style.xml"}
+  "_build/install/default/share/coq/default.bindings" {"coq/default.bindings"}
+]
+doc: [
+  "_build/install/default/doc/coqide/FAQ"
+  "_build/install/default/doc/coqide/LICENSE"
+  "_build/install/default/doc/coqide/README.md"
+  "_build/install/default/doc/coqide/odoc-pages/index.mld" {"odoc-pages/index.mld"}
+]
+man: [
+  "_build/install/default/man/man1/coqide.1"
+]
