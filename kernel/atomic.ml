@@ -12,7 +12,7 @@
 
 let rec apply_at_pos term pos f : Constr.constr option =
   match pos with
-  | [] -> Some term
+  | [] -> Some (f term)
   | h::t ->
     match Constr.kind term with
     | Rel  _ -> None (* TODO @mbty ERR *)
@@ -328,3 +328,267 @@ let reduce_at_pos env term pos =
 
 let apply_hints env term hints =
   List.fold_left (fun acc hint -> reduce_at_pos env acc hint) term hints
+
+let print_at term pos =
+  match Constr.kind term with
+  | Rel       _ -> "Rel"
+  | Var       _ -> "Var"
+  | Meta      _ -> "Meta"
+  | Evar      _ -> "Evar"
+  | Sort      _ -> "Sort"
+  | Cast      _ -> "Cast"
+  | Prod      _ -> "Prod"
+  | Lambda    _ -> "Lambda"
+  | LetIn     _ -> "LetIn"
+  | App       _ -> "App"
+  | Const     _ -> "Const"
+  | Ind       _ -> "Ind"
+  | Construct _ -> "Construct"
+  | Case      _ -> "Case"
+  | Fix       _ -> "Fix"
+  | CoFix     _ -> "CoFix"
+  | Proj      _ -> "Proj"
+  | Int       _ -> "Int"
+  | Float     _ -> "Float"
+  | Array     _ -> "Array"
+
+let rec focus term pos =
+  match pos with
+  | [] -> Some (term)
+  | h::t ->
+    match Constr.kind term with
+    | Rel  _ -> None (* TODO @mbty ERR *)
+    | Var  _ -> None (* TODO @mbty ERR *)
+    | Meta _ -> None (* TODO @mbty ERR *)
+    | Evar ((id, sl)) -> (* TODO @mbty ? *) (
+      match SList.nth_option sl h with
+      | Some (Some x) ->
+        let new_slist =
+          Option.bind (focus x t) (fun y -> SList.set_option sl h y)
+        in Option.map (fun y -> Constr.of_kind (Evar ((id, y)))) new_slist
+      | _ -> None (* TODO @mbty ERR *)
+    )
+    | Sort (_) -> None (* TODO @mbty ERR *)
+    | Cast (c1, k, c2) -> (
+      match h with
+      | 0 ->
+        Option.map
+          (fun x -> Constr.of_kind (Cast (x, k, c2)))
+          (focus c1 t)
+      | 1 ->
+        Option.map
+          (fun x -> Constr.of_kind (Cast (c1, k, x)))
+          (focus c2 t)
+      | _ -> None (* TODO @mbty ERR *)
+    )
+    | Prod (bind_annot, c1, c2) -> (
+      match h with
+      | 0 ->
+        Option.map
+          (fun x -> Constr.of_kind (Prod (bind_annot, x, c2)))
+          (focus c1 t)
+      | 1 ->
+        Option.map
+          (fun x -> Constr.of_kind (Prod (bind_annot, c1, x)))
+          (focus c2 t)
+      | _ -> None (* TODO @mbty ERR *)
+    )
+    | Lambda (bind_annot, c1, c2) -> (
+      match h with
+      | 0 ->
+        Option.map
+          (fun x -> Constr.of_kind (Lambda (bind_annot, x, c2)))
+          (focus c1 t)
+      | 1 ->
+        Option.map
+          (fun x -> Constr.of_kind (Lambda (bind_annot, c1, x)))
+          (focus c2 t)
+      | _ -> None (* TODO @mbty ERR *)
+    )
+    | LetIn (bind_annot, c1, c2, c3) -> (
+      match h with
+      | 0 ->
+        Option.map
+          (fun x -> Constr.of_kind (LetIn (bind_annot, x, c2, c3)))
+          (focus c1 t)
+      | 1 ->
+        Option.map
+          (fun x -> Constr.of_kind (LetIn (bind_annot, c1, x, c3)))
+          (focus c2 t)
+      | 2 ->
+        Option.map
+          (fun x -> Constr.of_kind (LetIn (bind_annot, c1, c2, x)))
+          (focus c3 t)
+      | _ -> None (* TODO @mbty ERR *)
+    )
+    | App (c1, cx) -> (
+      match h with
+      | 0 ->
+        Option.map (fun x -> Constr.of_kind (App (x, cx))) (focus c1 t)
+      | n ->
+        Option.map
+          (fun x -> Constr.of_kind (App (c1, x)))
+          (focus_in_arr cx (n - 1) t)
+    )
+    | Const     _ -> None (* TODO @mbty ERR *)
+    | Ind       _ -> None (* TODO @mbty ERR *)
+    | Construct _ -> None (* TODO @mbty ERR *)
+    | Case (
+        case_info, univ, params_c1, (ret_binder, c2), pcase_invert_c3, c4,
+        branches_c5
+      ) -> (
+      match h with
+      | 0 -> (
+        match t with
+        | [] -> None (* TODO @mbty ERR *)
+        | h'::t' -> (
+          Option.map
+            (fun x ->
+              Constr.of_kind (Case (
+                case_info, univ, x, (ret_binder, c2), pcase_invert_c3, c4,
+                branches_c5
+              ))
+            )
+            (focus_in_arr params_c1 h' t')
+        )
+      )
+      | 1 -> (
+        Option.map
+          (fun x ->
+            Constr.of_kind (Case (
+              case_info, univ, params_c1, (ret_binder, x), pcase_invert_c3, c4,
+              branches_c5
+            ))
+          )
+          (focus c2 t)
+      )
+      | 2 -> (
+        match pcase_invert_c3 with
+        | NoInvert -> None (* TODO @mbty ERR *)
+        | CaseInvert cx ->
+          match t with
+          | [] -> None (* TODO @mbty ERR *)
+          | h'::t' ->
+            Option.map
+              (fun x ->
+                Constr.of_kind (Case (
+                  case_info, univ, params_c1, (ret_binder, c2),
+                  CaseInvert {indices = x}, c4, branches_c5
+                ))
+              )
+              (focus_in_arr cx.indices h' t')
+      )
+      | 3 -> (
+        Option.map
+          (fun x ->
+            Constr.of_kind (Case (
+              case_info, univ, params_c1, (ret_binder, x), pcase_invert_c3, x,
+              branches_c5
+            ))
+          )
+          (focus c2 t)
+      )
+      | 4 -> (
+        match t with
+        | [] -> None (* TODO @mbty ERR *)
+        | h'::t' -> (
+          Option.map
+            (fun x ->
+              Constr.of_kind (Case (
+                case_info, univ, params_c1, (ret_binder, c2), pcase_invert_c3,
+                c4, x
+              ))
+            )
+            (focus_in_arr_snd branches_c5 h' t')
+        )
+      )
+      | _ -> None (* TODO @mbty ERR *)
+    )
+    | Fix ((args, (binders, cx1, cx2))) -> (
+      match h with
+      | 0 -> (
+        match t with
+        | [] -> None (* TODO @mbty ERR *)
+        | h'::t' ->
+          Option.map
+            (fun x -> Constr.of_kind (Fix ((args, (binders, x, cx2)))))
+            (focus_in_arr cx1 h' t')
+      )
+      | 1 -> (
+        match t with
+        | [] -> None (* TODO @mbty ERR *)
+        | h'::t' ->
+          Option.map
+            (fun x -> Constr.of_kind (Fix ((args, (binders, cx1, x)))))
+            (focus_in_arr cx2 h' t')
+      )
+      | _ -> None  (* TODO @mbty ERR *)
+    )
+    | CoFix ((returned_comp, (binders, cx1, cx2))) -> (
+      match h with
+      | 0 -> (
+        match t with
+        | [] -> None (* TODO @mbty ERR *)
+        | h'::t' ->
+          Option.map
+            (fun x ->
+              Constr.of_kind (CoFix ((returned_comp, (binders, x, cx2))))
+            )
+            (focus_in_arr cx1 h' t')
+      )
+      | 1 -> (
+        match t with
+        | [] -> None (* TODO @mbty ERR *)
+        | h'::t' ->
+          Option.map
+            (fun x ->
+              Constr.of_kind (CoFix ((returned_comp, (binders, cx1, x))))
+            )
+            (focus_in_arr cx2 h' t')
+      )
+      | _ -> None  (* TODO @mbty ERR *)
+    )
+    | Proj (id, c) ->
+      Option.map (fun x -> Constr.of_kind (Proj (id, x))) (focus c pos)
+    | Int   _ -> None (* TODO @mbty ERR *)
+    | Float _ -> None (* TODO @mbty ERR *)
+    | Array (univ, cx, c1, c2) -> (
+      match h with
+      | 0 -> (
+        match t with
+        | [] -> None (* TODO @mbty ERR *)
+        | h'::t' ->
+          Option.map
+            (fun x -> Constr.of_kind (Array (univ, x, c1, c2)))
+            (focus_in_arr cx h' t')
+      )
+      | 1 ->
+        Option.map
+          (fun x -> Constr.of_kind (Array (univ, cx, x, c2)))
+          (focus c1 t)
+      | 2 ->
+        Option.map
+          (fun x -> Constr.of_kind (Array (univ, cx, c1, x)))
+          (focus c2 t)
+      | _ -> None (* TODO @mbty ERR *)
+    )
+and focus_in_arr arr n pos =
+  let item = (
+    if (n < Array.length arr)
+    then Some (Array.get arr n)
+    else None (* TODO @mbty ERR *)
+  ) in
+  let item' = Option.bind item (fun x -> focus x pos) in
+  Option.map (fun x -> Array.set arr (n - 1) x; arr) item'
+and focus_in_arr_snd arr n pos =
+  let item = (
+    if (n < Array.length arr)
+    then Some (Array.get arr n)
+    else None (* TODO @mbty ERR *)
+  ) in
+  let item' =
+    Option.bind
+      item
+      (fun x -> Option.map (fun y -> (fst x, y)) (focus (snd x) pos))
+  in
+  Option.map (fun x -> Array.set arr (n - 1) x; arr) item'

@@ -30,10 +30,9 @@ let head_let_loc = [LetInDef]
 let head_loc     = []
 
 (* Wrappers for kernel functions *)
-let apply_auto_at env term pos =
-  (* TODO @mbty, need compatible atomic_red_location *)
-  (* Atomic.reduce_at_pos env term pos *)
-  term
+(* TODO @mbty constr or term? Pick one. *)
+let apply_atomic_at_pos_list env red constr pos_list evar_map =
+  Some (Atomic.reduce_at_pos env constr pos_list)
 
 (* For the time being, the reductions apply to X in let abc = X in Y. They are
    meant to be used after the expression has been transformed to this form, with
@@ -156,9 +155,9 @@ let atomic_match_aux term =
   | _ -> None
 
 (* Auto apply *)
-let atomic_auto_aux env term =
+let atomic_auto_aux env constr =
   (* TODO @mbty how to detect failure? *)
-  Some (apply_auto_at env term head_loc)
+  Some (Atomic.reduce_at_pos env constr [])
 
 let rec apply_to_nth_option_aux f l n =
   match l with
@@ -205,6 +204,7 @@ let eval_interface red : Reductionops.e_reduction_function =
       let eterm = EConstr.Unsafe.to_constr term in
       let res = Option.map EConstr.of_constr (
         match red with
+        | AtomicAuto   -> atomic_auto_aux   env eterm
         | AtomicCoFix  -> atomic_cofix_aux      eterm
         | AtomicFix    -> atomic_fix_aux        eterm
         | AtomicFun    -> atomic_fun_aux        eterm
@@ -224,8 +224,6 @@ let trivial_test () : unit Find_subterm.testing_function = {
   testing_state = ();
   last_found = None
 }
-
-(* TODO @mbty import apply auto from kernel *)
 
 let apply_atomic_occs' env red t occs evar_map =
   let test = trivial_test () in

@@ -18,12 +18,15 @@ val head_loc     : atomic_red_location
 
 val eval_interface : atomic_red -> Reductionops.e_reduction_function
 val apply_atomic   : Environ.env -> atomic_red -> Constr.constr -> Constr.constr
-val apply_auto_at  :
-  Environ.env -> Constr.constr -> atomic_red_location -> Constr.constr
+val apply_atomic_at_pos_list  :
+  Environ.env -> atomic_red -> Constr.constr -> Constr.atomic_red_location
+  -> Evd.evar_map -> Constr.constr option
+
 val apply_at       :
   Constr.constr -> atomic_red_location -> (Constr.constr -> Constr.constr)
   -> Constr.constr option
 
+(* TODO @mbty this should eventually supplant the above functions *)
 val apply_atomic_occs :
   Environ.env -> atomic_red -> EConstr.constr
   -> Locus.occurrences Locus.or_like_first -> Evd.evar_map

@@ -72,7 +72,6 @@ let pr_red_expr (pr_constr,pr_lconstr,pr_ref,pr_pattern) keyword = function
   | Pattern l ->
     hov 1 (keyword "pattern" ++
               pr_arg (prlist_with_sep pr_comma (pr_with_occurrences pr_constr keyword)) l)
-
   | Red true ->
     CErrors.user_err Pp.(str "Shouldn't be accessible from user.")
   | ExtraRedExpr s ->

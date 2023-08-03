@@ -10,6 +10,7 @@
 
 {
 open Tactics
+open Extraargs
 }
 
 DECLARE PLUGIN "coq-core.plugins.ltac"
@@ -22,5 +23,8 @@ TACTIC EXTEND atomic
 | [ "atomic" "let"     ] -> { atomic_let     }
 | [ "atomic" "match"   ] -> { atomic_match   }
 | [ "atomic" "let_rev" ] -> { atomic_let_rev }
-(* | [ "atomic" "let" "at" occurrences(occs) ] -> { atomic_let_at occs } *)
+(* | [ "atomic" "auto"    ] -> { atomic_auto    } *)
+| [ "atomic" "debug" "at" occurrences(occs) ] -> { debug_at occs }
+| [ "atomic" "auto" "at" occurrences(occs) ] ->
+  { apply_atomic_at_in_concl_pos_list AtomicAuto occs }
 END

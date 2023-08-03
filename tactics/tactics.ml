@@ -5445,12 +5445,15 @@ let apply_atomic_at_in_concl red pos =
 let apply_atomic_head_let_in_concl red =
   apply_atomic_at_in_concl red Atomic_reds.head_let_loc
 
-let atomic_fun     = apply_atomic_head_let_in_concl AtomicFun
-let atomic_fix     = apply_atomic_head_let_in_concl AtomicFix
-let atomic_cofix   = apply_atomic_head_let_in_concl AtomicCoFix
-let atomic_match   = apply_atomic_head_let_in_concl AtomicMatch
-let atomic_let     = apply_atomic_head_let_in_concl AtomicLet
-let atomic_unfold  = apply_atomic_head_let_in_concl AtomicUnfold
+let atomic_fun         = apply_atomic_head_let_in_concl AtomicFun
+let atomic_fix         = apply_atomic_head_let_in_concl AtomicFix
+let atomic_cofix       = apply_atomic_head_let_in_concl AtomicCoFix
+let atomic_match       = apply_atomic_head_let_in_concl AtomicMatch
+let atomic_let         = apply_atomic_head_let_in_concl AtomicLet
+let atomic_unfold      = apply_atomic_head_let_in_concl AtomicUnfold
+(* let atomic_auto        = apply_atomic_head_let_in_concl AtomicUnfold *)
+
+let atomic_at occs = apply_atomic_at_in_concl AtomicLet occs
 (* TODO @mbty remove atomic_let_rev eventually *)
 let atomic_let_rev = apply_atomic_at_in_concl AtomicLet Atomic_reds.head_loc
 
@@ -5467,6 +5470,34 @@ let apply_atomic_at_in_concl_occs red occs =
       match constr' with
       | None   -> Proofview.tclUNIT ()
       | Some x -> change_concl x
+    )
+
+let apply_atomic_at_in_concl_pos_list red pos_list =
+  assert (red == Atomic_reds.AtomicAuto); (* FIXME @mbty *)
+  Proofview.Goal.enter
+    (fun gl ->
+      let env      = Proofview.Goal.env gl in
+      let evar_map = Proofview.Goal.sigma gl in
+      let constr   = EConstr.Unsafe.to_constr (Proofview.Goal.concl gl) in
+      let constr'  =
+        Atomic_reds.apply_atomic_at_pos_list env red constr pos_list evar_map
+      in
+      match constr' with
+      | None   -> Proofview.tclUNIT ()
+      | Some x -> change_concl (EConstr.of_constr x)
+    )
+
+let debug_at pos_list =
+  Proofview.Goal.enter
+    (fun gl ->
+      let env      = Proofview.Goal.env gl in
+      let evar_map = Proofview.Goal.sigma gl in
+      let constr   = EConstr.Unsafe.to_constr (Proofview.Goal.concl gl) in
+      Feedback.msg_notice @@ (match Atomic.focus constr pos_list with
+      | None -> Pp.str "invalid"
+      | Some x -> Printer.safe_pr_constr_env env evar_map x
+      );
+      Proofview.tclUNIT ()
     )
 
 let atomic_let_at occs = apply_atomic_at_in_concl_occs AtomicLet occs

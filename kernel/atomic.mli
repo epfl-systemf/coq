@@ -13,3 +13,6 @@ open Environ
 
 val apply_hints   : env -> constr -> atomic_red_location list -> constr
 val reduce_at_pos : env -> constr -> atomic_red_location      -> constr
+(* TODO @mbty remove following *)
+val print_at      : constr -> atomic_red_location -> string
+val focus         : constr -> atomic_red_location -> constr option
