@@ -23,6 +23,7 @@ TACTIC EXTEND atomic
 | [ "atomic" "let"     ] -> { atomic_let     }
 | [ "atomic" "match"   ] -> { atomic_match   }
 | [ "atomic" "let_rev" ] -> { atomic_let_rev }
+| [ "atomic" "show" "pos" "[" intlist(l) "]" ] -> { show_at l }
 | [ "atomic" "debug" "at" "[" intlist(l) "]" ] -> { debug_at l }
 | [ "atomic" "auto" "at" "[" intlist(l) "]" ] ->
   { apply_atomic_at_in_concl_pos_list AtomicAuto l }

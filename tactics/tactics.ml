@@ -5487,7 +5487,7 @@ let apply_atomic_at_in_concl_pos_list red pos_list =
       | Some x -> change_concl (EConstr.of_constr x)
     )
 
-let debug_at pos_list =
+let show_at pos_list =
   Proofview.Goal.enter
     (fun gl ->
       let env      = Proofview.Goal.env gl in
@@ -5496,6 +5496,22 @@ let debug_at pos_list =
       Feedback.msg_notice @@ (match Atomic.focus constr pos_list with
       | None -> Pp.str "invalid"
       | Some x -> Printer.safe_pr_constr_env env evar_map x
+      );
+      Proofview.tclUNIT ()
+    )
+
+let debug_at pos_list =
+  Proofview.Goal.enter
+    (fun gl ->
+      let env      = Proofview.Goal.env gl in
+      let evar_map = Proofview.Goal.sigma gl in
+      let constr   = EConstr.Unsafe.to_constr (Proofview.Goal.concl gl) in
+      let constr'  = Atomic.focus constr pos_list in
+      Feedback.msg_notice @@ (match constr' with
+      | None   -> Pp.str "invalid"
+      | Some x ->
+        Printer.safe_pr_constr_env env evar_map
+          (Atomic.apply_appropriate_atomic env x)
       );
       Proofview.tclUNIT ()
     )

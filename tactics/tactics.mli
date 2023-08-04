@@ -460,4 +460,5 @@ val atomic_let_rev : unit Proofview.tactic
 
 val apply_atomic_at_in_concl_pos_list :
   Atomic_reds.atomic_red -> Constr.atomic_red_location -> unit Proofview.tactic
+val show_at : Constr.atomic_red_location -> unit Proofview.tactic
 val debug_at : Constr.atomic_red_location -> unit Proofview.tactic
