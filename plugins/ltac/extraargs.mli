@@ -24,7 +24,8 @@ val wit_occurrences : (int list Locus.or_var, int list Locus.or_var, int list) G
 val pr_occurrences : int list Locus.or_var -> Pp.t
 val occurrences_of : int list -> Locus.occurrences
 
-val int_list : (int list) Pcoq.Entry.t
+val intlist : (int list) Pcoq.Entry.t
+val wit_intlist : (int list) Genarg.uniform_genarg_type
 
 val wit_natural : int Genarg.uniform_genarg_type
 

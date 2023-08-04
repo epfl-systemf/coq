@@ -139,25 +139,25 @@ ARGUMENT EXTEND occurrences
 END
 
 {
-let pr_int_list_for_atomic l =
+let pr_intlist_for_atomic l =
   Pp.hov 1 (Pp.str "[" ++ Pp.pr_enum Pp.int l ++ Pp.str"]")
-let pr_int_list_full_for_atomic _prc _prlc _prt l = pr_int_list_for_atomic l
+let pr_intlist_full_for_atomic _prc _prlc _prt l = pr_intlist_for_atomic l
 
-let interp_int_list _ist _env _sigma l = l
-let glob_int_list _ist l = l
-let subst_int_list _evm l = l
+let interp_intlist _ist _env _sigma l = l
+let glob_intlist _ist l = l
+let subst_intlist _evm l = l
 }
 
-ARGUMENT EXTEND int_list
+ARGUMENT EXTEND intlist
   TYPED AS int list
-  PRINTED BY { pr_int_list_full_for_atomic }
+  PRINTED BY { pr_intlist_full_for_atomic }
 
-  INTERPRETED BY { interp_int_list }
-  GLOBALIZED BY { glob_int_list }
-  SUBSTITUTED BY { subst_int_list }
+  INTERPRETED BY { interp_intlist }
+  GLOBALIZED BY { glob_intlist }
+  SUBSTITUTED BY { subst_intlist }
 
-  RAW_PRINTED BY { pr_int_list_full_for_atomic }
-  GLOB_PRINTED BY { pr_int_list_full_for_atomic }
+  RAW_PRINTED BY { pr_intlist_full_for_atomic }
+  GLOB_PRINTED BY { pr_intlist_full_for_atomic }
 
 | [ integer_list(l) ] -> { l }
 END

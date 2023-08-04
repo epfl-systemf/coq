@@ -23,8 +23,7 @@ TACTIC EXTEND atomic
 | [ "atomic" "let"     ] -> { atomic_let     }
 | [ "atomic" "match"   ] -> { atomic_match   }
 | [ "atomic" "let_rev" ] -> { atomic_let_rev }
-(* | [ "atomic" "auto"    ] -> { atomic_auto    } *)
-| [ "atomic" "debug" "at" occurrences(occs) ] -> { debug_at occs }
-| [ "atomic" "auto" "at" occurrences(occs) ] ->
-  { apply_atomic_at_in_concl_pos_list AtomicAuto occs }
+| [ "atomic" "debug" "at" "[" intlist(l) "]" ] -> { debug_at l }
+| [ "atomic" "auto" "at" "[" intlist(l) "]" ] ->
+  { apply_atomic_at_in_concl_pos_list AtomicAuto l }
 END
