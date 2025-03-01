@@ -634,11 +634,26 @@ let rec pr_evars_int_hd pr sigma i = function
       (hov 0 (pr i evk evi)) ++
       (match rest with [] -> mt () | _ -> fnl () ++ pr_evars_int_hd pr sigma (i+1) rest)
 
+(* Returns true if the given evar has a name *)
+let pr_evar_has_name sigma evk =
+  match Evd.evar_ident evk sigma with
+  | None -> false
+  | Some _ -> true
+
 let pr_evars_int sigma ~shelf ~given_up i evs =
   let pr_status i =
-    if List.mem i shelf then str " (shelved)"
-    else if List.mem i given_up then str " (given up)"
-    else mt () in
+    let status =
+      if List.mem i shelf then [str "shelved"]
+      else if List.mem i given_up then [str "given up"]
+      else [] in
+    (* Check whether the evar has a synthetic (unfocusable) name *)
+    let status =
+      if pr_evar_has_name sigma i then status else str "synthetic name" :: status in
+    begin match status with
+    | [] -> mt ()
+    | s :: [] -> str " (" ++ s ++ str ")"
+    | s1 :: s2 :: _ -> str " (" ++ s2 ++ str "; " ++ s1 ++ str ")"
+    end in
   pr_evars_int_hd
     (fun i evk evi ->
       str "Existential " ++ int i ++ str " =" ++
