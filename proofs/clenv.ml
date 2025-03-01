@@ -488,7 +488,14 @@ let clenv_pose_metas_as_evars ~metas env sigma dep_mvs =
       else
         let src = Meta.evar_source_of_meta mv metas in
         let src = adjust_meta_source ~metas sigma mv src in
-        let (sigma, evar) = new_evar env sigma ~src ty in
+        (* Add a name to the evar if the meta comes from a variable to make the
+           goal focusable. *)
+        let naming =
+          begin match src with
+          | _, Evar_kinds.VarInstance id -> Namegen.IntroFresh id
+          | _ -> Namegen.IntroAnonymous
+          end in
+        let (sigma, evar) = new_evar env sigma ~src ~naming ty in
         let sigma, metas = clenv_assign ~metas env sigma mv evar in
         fold metas sigma mvs in
   fold metas sigma dep_mvs
