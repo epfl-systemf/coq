@@ -233,7 +233,6 @@ let clenv_environments env sigma template bound t =
       | (n, Prod (na,t1,t2)) ->
           let mv = new_meta () in
           let dep = not (noccurn sigma 1 t2) in
-          let na' = if dep then na.binder_name else Anonymous in
           let sigma, t1, templ, tmpl = match templ with
           | [] -> sigma, t1, templ, None
           | None :: templ -> sigma, t1, templ, None
@@ -243,7 +242,7 @@ let clenv_environments env sigma template bound t =
             let t1 = EConstr.it_mkProd_or_LetIn (EConstr.mkType (Univ.Universe.make s)) decls in
             sigma, t1, templ, Some (decls, s)
           in
-          let metam = Meta.meta_declare mv t1 ~name:na' metam in
+          let metam = Meta.meta_declare mv t1 ~name:na.binder_name metam in
           let t2 = if dep then (subst1 (mkMeta mv) t2) else t2 in
           clrec templ sigma metam ((mv, dep, tmpl) :: metas) (Option.map ((+) (-1)) n) t2
       | (n, LetIn (na,b,_,t)) -> clrec templ sigma metam metas n (subst1 b t)
@@ -762,7 +761,7 @@ let rec as_constr = function
 | RfProj (p, r, c) -> EConstr.mkProj (p, r, as_constr c)
 
 (* Old style mk_goal primitive *)
-let mk_goal env evars hyps concl =
+let mk_goal env evars ?name hyps concl =
   (* A goal created that way will not be used by refine and will not
       be shelved. It must not appear as a future_goal, so the future
       goals are restored to their initial value after the evar is
@@ -770,8 +769,12 @@ let mk_goal env evars hyps concl =
   let evars = Evd.push_future_goals evars in
   let inst = EConstr.identity_subst_val hyps in
   let relevance = Retyping.relevance_of_type env evars concl in
+  let name = match name with
+  | Some name -> Evarutil.next_evar_name evars (Namegen.IntroFresh name)
+  | None -> None
+  in
   let (evars,evk) =
-    Evarutil.new_pure_evar ~src:(Loc.tag Evar_kinds.GoalEvar) ~typeclass_candidate:false hyps evars ~relevance concl
+    Evarutil.new_pure_evar ~src:(Loc.tag Evar_kinds.GoalEvar) ?name ~typeclass_candidate:false hyps evars ~relevance concl
   in
   let _, evars = Evd.pop_future_goals evars in
   let ev = EConstr.mkEvar (evk,inst) in
@@ -788,7 +791,12 @@ let rec mk_refgoals ~metas env sigma goalacc conclty trm = match trm with
   in
   let conclty = nf_betaiota env sigma conclty in
   let hyps = Environ.named_context_val env in
-  let (gl,ev,sigma) = mk_goal env sigma hyps conclty in
+  (* Add a name to the goal if the metavariable itself has a name *)
+  let name = match Meta.meta_name metas mv with
+  | Name name -> Some name
+  | Anonymous -> None
+  in
+  let (gl,ev,sigma) = mk_goal env sigma ?name hyps conclty in
   gl::goalacc, conclty, sigma, ev
 | RfApp (f, l) ->
   let (acc',hdty,sigma,applicand) = match f with
