@@ -204,8 +204,8 @@ let mis_make_case_com dep env sigma (ind, u as pind) (mib, mip) s =
     else
       let cs = lift_constructor (k+1) constrs.(k) in
       let t = build_branch_type !!env sigma dep (mkRel (k+1)) cs in
-      let namef = make_name env "f" relevance in
-      let decl = LocalAssum (namef, t) in
+      let case_name = make_name env ("case_" ^ Id.to_string mip.mind_consnames.(k)) relevance in
+      let decl = LocalAssum (case_name, t) in
       get_branches (RelEnv.push_rel decl env) (k + 1) (decl :: accu)
   in
 
