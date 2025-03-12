@@ -833,14 +833,15 @@ and mk_arggoals ~metas env sigma goalacc funty allargs =
 
 let treat_case env sigma ci lbrty accu =
   let open EConstr in
-  let fold (sigma, accu) (ctx, ty) =
+  let fold (sigma, accu) (name, ctx, ty) =
     let open Context.Rel.Declaration in
     let brctx = Array.of_list (List.rev_map get_annot ctx) in
     let args = Context.Rel.instance mkRel 0 ctx in
     (* TODO: tweak this to prevent dummy β-cuts *)
     let ty = nf_betaiota env sigma (it_mkProd_or_LetIn ty ctx) in
     let hyps = Environ.named_context_val env in
-    let (gl, ev, sigma) = mk_goal env sigma hyps ty in
+    let name = Id.of_string ("case_" ^ Id.to_string name) in
+    let (gl, ev, sigma) = mk_goal env sigma ~name hyps ty in
     let br' = mkApp (ev, args) in
     (sigma, gl :: accu), (brctx, br')
   in
@@ -857,7 +858,7 @@ let std_refine ~metas env sigma cl r =
 
 type refiner_kind =
 | Std of Meta.t * EConstr.t
-| Case of case_node * (EConstr.rel_context * EConstr.t) array
+| Case of case_node * (Id.t * EConstr.rel_context * EConstr.t) array
 
 let refiner_gen is_case =
   let open Proofview.Notations in
@@ -1017,11 +1018,12 @@ let case_pf ?(with_evars=false) ~dep (indarg, typ) =
     let get_branch cs =
       let base = mkApp (pred, cs.cs_concl_realargs) in
       let argctx = cs.cs_args in
+      let name = cs.cs_name in
       if dep then
         let argctx = Namegen.name_context env sigma argctx in
-        (argctx, applist (base, [build_dependent_constructor cs]))
+        (name, argctx, applist (base, [build_dependent_constructor cs]))
       else
-        (argctx, base)
+        (name, argctx, base)
     in
     Array.map get_branch constrs
   in
@@ -1047,7 +1049,7 @@ let case_pf ?(with_evars=false) ~dep (indarg, typ) =
     Internal.Case ((ci, u, pms, (p,r), iv, c), branches)
   | PrimitiveEta args ->
     let mv = new_meta () in
-    let (ctx, t) = branches.(0) in
+    let (_, ctx, t) = branches.(0) in
     let metas = Meta.meta_declare mv (it_mkProd_or_LetIn t ctx) metas in
     Internal.Std (metas, mkApp (mkMeta mv, Array.map nf_betaiota args))
   in
