@@ -91,6 +91,7 @@ let make_prod_dep dep env = if dep then mkProd_name env else mkProd
 let make_name env s r =
   let id = next_ident_away (Id.of_string s) env.RelEnv.avoid in
   make_annot (Name id) r
+let make_case_name env cs_name r = make_name env ("case_" ^ Id.to_string cs_name) r
 
 
 (*******************************************)
@@ -203,7 +204,7 @@ let mis_make_case_com dep env sigma (ind, u as pind) (mib, mip) s =
     else
       let cs = lift_constructor (k+1) constrs.(k) in
       let t = build_branch_type !!env sigma dep (mkRel (k+1)) cs in
-      let case_name = make_name env ("case_" ^ Id.to_string mip.mind_consnames.(k)) relevance in
+      let case_name = make_case_name env mip.mind_consnames.(k) relevance in
       let decl = LocalAssum (case_name, t) in
       get_branches (RelEnv.push_rel decl env) (k + 1) (decl :: accu)
   in
@@ -589,7 +590,7 @@ let mis_make_indrec env sigma ?(force_mutual=false) listdepkind mib u =
                   true dep !!env !evdref (vargs,depPvec,i+j) indi cs recarg
               in
               let r_0 = Retyping.relevance_of_sort sfam in
-              let case_name = make_name env ("case_" ^ Id.to_string cs.cs_name) r_0 in
+              let case_name = make_case_name env cs.cs_name r_0 in
                 mkLambda (case_name, p_0,
                   (onerec (RelEnv.push_rel (LocalAssum (case_name,p_0)) env)) (j+1))
           in onerec env 0
