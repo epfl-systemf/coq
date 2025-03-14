@@ -589,9 +589,9 @@ let mis_make_indrec env sigma ?(force_mutual=false) listdepkind mib u =
                   true dep !!env !evdref (vargs,depPvec,i+j) indi cs recarg
               in
               let r_0 = Retyping.relevance_of_sort sfam in
-              let namef = make_name env "f" r_0 in
-                mkLambda (namef, p_0,
-                  (onerec (RelEnv.push_rel (LocalAssum (namef,p_0)) env)) (j+1))
+              let case_name = make_name env ("case_" ^ Id.to_string cs.cs_name) r_0 in
+                mkLambda (case_name, p_0,
+                  (onerec (RelEnv.push_rel (LocalAssum (case_name,p_0)) env)) (j+1))
           in onerec env 0
       | [] ->
           makefix i listdepkind
