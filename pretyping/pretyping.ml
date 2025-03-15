@@ -495,6 +495,13 @@ let adjust_evar_source sigma na c =
        let src = (loc,Evar_kinds.QuestionMark { qm with Evar_kinds.qm_name=na }) in
        (* Evd.update_source doesn't work for some reason, cf test bug_18260_1.v *)
        let (sigma, evk') = Evd.restrict evk (evar_filter evi) ~src sigma in
+       (* Add a name to the goal evar, if necessary. *)
+       let sigma = match Evd.evar_ident evk sigma with
+          | Some _ -> sigma
+          | None ->
+            let id = Option.get @@ next_evar_name sigma (Namegen.IntroFresh id) in
+            Evd.rename evk' id sigma
+       in
        sigma, mkEvar (evk',args)
      | _ -> sigma, c
      end
