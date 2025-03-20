@@ -35,6 +35,10 @@ type erelevance
 
 (** {5 Existential variables and unification states} *)
 
+(** Whether all printed evar names can be selected through named goal selection,
+    i.e., whether evar names are accessible. *)
+val accessible_goal_names : unit -> bool
+
 (** {6 Evar filters} *)
 
 module Filter :

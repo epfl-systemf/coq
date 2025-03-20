@@ -648,7 +648,9 @@ let pr_evars_int sigma ~shelf ~given_up i evs =
       else [] in
     (* Check whether the evar has a synthetic (unfocusable) name *)
     let status =
-      if pr_evar_has_name sigma i then status else str "synthetic name" :: status in
+      if not (pr_evar_has_name sigma i) && Evd.accessible_goal_names () then str "synthetic name" :: status
+      else status
+    in
     begin match status with
     | [] -> mt ()
     | s :: [] -> str " (" ++ s ++ str ")"

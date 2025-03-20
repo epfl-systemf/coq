@@ -491,7 +491,7 @@ let clenv_pose_metas_as_evars ~metas env sigma dep_mvs =
            goal focusable. *)
         let naming =
           begin match src with
-          | _, Evar_kinds.VarInstance id -> Namegen.IntroFresh id
+          | _, Evar_kinds.VarInstance id when Evd.accessible_goal_names() -> Namegen.IntroFresh id
           | _ -> Namegen.IntroAnonymous
           end in
         let typeclass_candidate = Typeclasses.is_maybe_class_type sigma ty in
@@ -770,8 +770,8 @@ let mk_goal env evars ?name hyps concl =
   let inst = EConstr.identity_subst_val hyps in
   let relevance = Retyping.relevance_of_type env evars concl in
   let name = match name with
-  | Some name -> Evarutil.next_evar_name evars (Namegen.IntroFresh name)
-  | None -> None
+  | Some name when Evd.accessible_goal_names() -> Evarutil.next_evar_name evars (Namegen.IntroFresh name)
+  | _ -> None
   in
   let (evars,evk) =
     Evarutil.new_pure_evar ~src:(Loc.tag Evar_kinds.GoalEvar) ?name ~typeclass_candidate:false hyps evars ~relevance concl
