@@ -486,6 +486,16 @@ let process_inference_flags flags env initial (sigma,c,cty) =
   let c = if flags.expand_evars then nf_evar sigma c else c in
   sigma,c,cty
 
+let make_goal_accessible evk sigma name =
+  if Evd.accessible_goal_names () then
+    match Evd.evar_ident evk sigma with
+    | Some _ -> sigma
+    | None ->
+        let name = Option.get @@ next_evar_name sigma (Namegen.IntroFresh name) in
+        Evd.rename evk name sigma
+  else
+    sigma
+
 let adjust_evar_source sigma na c =
   match na, kind sigma c with
   | Name id, Evar (evk,args) ->
@@ -495,13 +505,8 @@ let adjust_evar_source sigma na c =
        let src = (loc,Evar_kinds.QuestionMark { qm with Evar_kinds.qm_name=na }) in
        (* Evd.update_source doesn't work for some reason, cf test bug_18260_1.v *)
        let (sigma, evk') = Evd.restrict evk (evar_filter evi) ~src sigma in
-       (* Add a name to the goal evar, if necessary. *)
-       let sigma = match Evd.evar_ident evk sigma with
-          | Some _ -> sigma
-          | None ->
-            let id = Option.get @@ next_evar_name sigma (Namegen.IntroFresh id) in
-            Evd.rename evk' id sigma
-       in
+       (* Make the goal evar accessible if the option is set. *)
+       let sigma = make_goal_accessible evk' sigma id in
        sigma, mkEvar (evk',args)
      | _ -> sigma, c
      end

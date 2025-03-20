@@ -342,6 +342,12 @@ type 'a in_ustate = 'a * UState.t
 type conv_pb = Conversion.conv_pb
 type evar_constraint = conv_pb * Environ.env * constr * constr
 
+let { Goptions.get = accessible_goal_names } =
+  Goptions.declare_bool_option_and_ref
+    ~key:["Accessible";"Goal";"Names"]
+    ~value:false
+    ()
+
 module EvMap = Evar.Map
 
 module EvNames :
