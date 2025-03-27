@@ -31,14 +31,14 @@ Goal forall A, A \/ A -> A.
 Proof.
   intros A H.
   destruct H.
-  [case_or_introl]: assumption.
-  [case_or_intror]: assumption.
+  [or_introl_case]: assumption.
+  [or_intror_case]: assumption.
 Qed.
 
 (* induction *)
 Goal forall x : list nat, x = x.
 Proof.
   induction x.
-  [case_nil]: reflexivity.
-  [case_cons]: reflexivity.
+  [nil_case]: reflexivity.
+  [cons_case]: reflexivity.
 Qed.
