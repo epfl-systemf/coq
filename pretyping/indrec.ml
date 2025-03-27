@@ -91,7 +91,7 @@ let make_prod_dep dep env = if dep then mkProd_name env else mkProd
 let make_name env s r =
   let id = next_ident_away (Id.of_string s) env.RelEnv.avoid in
   make_annot (Name id) r
-let make_case_name env cs_name r = make_name env ("case_" ^ Id.to_string cs_name) r
+let make_case_name env cs_name r = make_name env (Id.to_string cs_name ^ "_case") r
 
 
 (*******************************************)

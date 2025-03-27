@@ -840,7 +840,7 @@ let treat_case env sigma ci lbrty accu =
     (* TODO: tweak this to prevent dummy β-cuts *)
     let ty = nf_betaiota env sigma (it_mkProd_or_LetIn ty ctx) in
     let hyps = Environ.named_context_val env in
-    let name = Id.of_string ("case_" ^ Id.to_string name) in
+    let name = Id.of_string (Id.to_string name ^ "_case") in
     let (gl, ev, sigma) = mk_goal env sigma ~name hyps ty in
     let br' = mkApp (ev, args) in
     (sigma, gl :: accu), (brctx, br')
