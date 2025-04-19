@@ -63,6 +63,7 @@ module type ExtS = sig
     val fold_right : (key -> 'a -> 'b -> 'b M.t) -> 'a t -> 'b -> 'b M.t
   end
 
+  val find_first2 : (key -> 'a -> bool) -> 'a t -> (key * 'a)
   val fold_left : (key -> 'a -> 'b -> 'b) -> 'a t -> 'b -> 'b
   val fold_right : (key -> 'a -> 'b -> 'b) -> 'a t -> 'b -> 'b
   val fold_left_map : (key -> 'a -> 'b -> 'b * 'c) -> 'a t -> 'b -> 'b * 'c t
@@ -77,6 +78,7 @@ sig
   val modify : M.t -> (M.t -> 'a -> 'a) -> 'a map -> 'a map
   val domain : 'a map -> Set.Make(M).t
   val bind : (M.t -> 'a) -> Set.Make(M).t -> 'a map
+  val find_first2 : (M.t -> 'a -> bool) -> 'a map -> (M.t * 'a)
   val fold_left : (M.t -> 'a -> 'b -> 'b) -> 'a map -> 'b -> 'b
   val fold_right : (M.t -> 'a -> 'b -> 'b) -> 'a map -> 'b -> 'b
   val fold_left_map : (M.t -> 'a -> 'b -> 'b * 'c) -> 'a map -> 'b -> 'b * 'c map
@@ -181,6 +183,14 @@ struct
   | SNode (l, k, r, h) ->
     map_inj (MNode { l=bind f l; v=k; d=f k; r=bind f r; h})
   (** Dual operation of [domain]. *)
+
+  let rec find_first2 f (s : 'a map) = match map_prj s with
+  | MEmpty -> raise Not_found
+  | MNode {l; v; d; r; h} ->
+     try find_first2 f l
+     with Not_found ->
+       if f v d then (v, d)
+       else find_first2 f r
 
   let rec fold_left f (s : 'a map) accu = match map_prj s with
   | MEmpty -> accu

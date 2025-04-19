@@ -195,7 +195,7 @@ val new_pure_evar :
   ?src:Evar_kinds.t Loc.located -> ?filter:Filter.t ->
   relevance:erelevance ->
   ?abstract_arguments:Abstraction.t -> ?candidates:econstr list ->
-  ?name:Id.t ->
+  ?name:(Id.t Lazy.t) ->
   ?typeclass_candidate:bool ->
   named_context_val -> evar_map -> etypes -> evar_map * Evar.t
 (** Low-level interface to create an evar.
@@ -371,7 +371,9 @@ val evar_ident : Evar.t -> evar_map -> Id.t option
 
 val evar_has_ident : Evar.t -> evar_map -> bool
 
-val rename : Evar.t -> Id.t -> evar_map -> evar_map
+val rename : Evar.t -> Id.t Lazy.t -> evar_map -> evar_map
+
+val transfer_name : Evar.t -> Evar.t -> evar_map -> evar_map
 
 val evar_key : Id.t -> evar_map -> Evar.t
 

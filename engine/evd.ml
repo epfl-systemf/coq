@@ -356,9 +356,9 @@ sig
 type t
 
 val empty : t
-val add_name_undefined : Id.t option -> Evar.t -> 'a evar_info -> t -> t
+val add_name_undefined : Id.t Lazy.t option -> Evar.t -> 'a evar_info -> t -> t
 val remove_name_defined : Evar.t -> t -> t
-val rename : Evar.t -> Id.t -> t -> t
+val rename : Evar.t -> Id.t Lazy.t -> t -> t
 val reassign_name_defined : Evar.t -> Evar.t -> t -> t
 val ident : Evar.t -> t -> Id.t option
 val key : Id.t -> t -> Evar.t
@@ -367,10 +367,16 @@ val state : t -> Fresh.t
 end =
 struct
 
+(* NOTE: Mutability is present only for updating [rev_map] and [fsh_map] once an id is forced.
+
+Invariants:
+- An ID with a not-yet-computed name does not appear in [rev_map] and [fsh_map].
+- An ID whose name was forced is present in [rev_map] and [fsh_map].
+*)
 type t = {
-  fwd_map : Id.t EvMap.t;
-  rev_map : Evar.t Id.Map.t;
-  fsh_map : Fresh.t;
+  fwd_map : Id.t Lazy.t EvMap.t;
+  mutable rev_map : Evar.t Id.Map.t;
+  mutable fsh_map : Fresh.t;
 }
 
 let empty = {
@@ -379,60 +385,104 @@ let empty = {
   fsh_map = Fresh.empty;
 }
 
-let add_name_newly_undefined id evk evi names =
-  match id with
-  | None -> names
-  | Some id ->
+(* Force the name [id] of [evk]. *)
+let force_name names = fun evk id ->
+  if Lazy.is_val id then
+    (* id was already forced, so there is nothing to do. *)
+    ()
+  else
+    let id = Lazy.force id in
     if Id.Map.mem id names.rev_map then
-      user_err  (str "Already an existential evar of name " ++ Id.print id);
+      user_err (str "Already an existential evar of name " ++ Id.print id);
+    (* Update [rev_map] and [fsh_map]. *)
+    names.rev_map <- Id.Map.add id evk names.rev_map;
+    names.fsh_map <- Fresh.add id names.fsh_map
+
+(* Force all names. *)
+let force names = EvMap.iter (force_name names) names.fwd_map
+
+(* Force all names until you find [id], and returns the associated evar. *)
+let force_and_find id names =
+  let eq evk id' =
+    force_name names evk id';
+    Id.equal id (Lazy.force id')
+  in
+  let (evk, _) = EvMap.find_first2 eq names.fwd_map in
+  evk
+
+(* Primitive method that adds name [id] to [evk] in [names].
+   This method assumes that [evk] has no prior name. *)
+let add_name_newly_undefined id evk names =
+  if Lazy.is_val id then
+    (* id is already forced, so we immediately add it to [rev_map] and [fsh_map]. *)
+    let name = Lazy.force id in
+    if Id.Map.mem name names.rev_map then
+      user_err (str "Already an existential evar of name " ++ Id.print name);
     { fwd_map = EvMap.add evk id names.fwd_map;
-      rev_map = Id.Map.add id evk names.rev_map;
-      fsh_map = Fresh.add id names.fsh_map; }
+      rev_map = Id.Map.add name evk names.rev_map;
+      fsh_map = Fresh.add name names.fsh_map }
+  else
+    (* id is not yet computed *)
+    { names with fwd_map = EvMap.add evk id names.fwd_map }
 
 let add_name_undefined naming evk evi evar_names =
-  if EvMap.mem evk evar_names.fwd_map then
+  if naming = None || EvMap.mem evk evar_names.fwd_map then
     evar_names
   else
-    add_name_newly_undefined naming evk evi evar_names
+    add_name_newly_undefined (Option.get naming) evk evar_names
 
 let remove_name_defined evk names =
-  let id = try Some (EvMap.find evk names.fwd_map) with Not_found -> None in
-  match id with
-  | None -> names
-  | Some id ->
-    { fwd_map = EvMap.remove evk names.fwd_map;
-      rev_map = Id.Map.remove id names.rev_map;
-      fsh_map = Fresh.remove id names.fsh_map }
+  try
+    let id = EvMap.find evk names.fwd_map in
+    if Lazy.is_val id then
+      (* id was already forced *)
+      let id = Lazy.force id in
+      { fwd_map = EvMap.remove evk names.fwd_map;
+        rev_map = Id.Map.remove id names.rev_map;
+        fsh_map = Fresh.remove id names.fsh_map }
+    else
+      (* id is not computed, so it doesn't appear in rev_map/fsh_map *)
+      { names with fwd_map = EvMap.remove evk names.fwd_map }
+  with Not_found ->
+    (* [evk] has no name. *)
+    names
+
 
 let rename evk id names =
-  let id' = try Some (EvMap.find evk names.fwd_map) with Not_found -> None in
-  match id' with
-  | None ->
-    { fwd_map = EvMap.add evk id names.fwd_map;
-      rev_map = Id.Map.add id evk names.rev_map;
-      fsh_map = Fresh.add id names.fsh_map }
-  | Some id' ->
-    if Id.Map.mem id names.rev_map then anomaly (str "Evar name already in use.");
-    { fwd_map = EvMap.set evk id names.fwd_map; (* overwrite old name *)
-      rev_map = Id.Map.add id evk (Id.Map.remove id' names.rev_map);
-      fsh_map = Fresh.add id (Fresh.remove id' names.fsh_map) }
+  add_name_newly_undefined id evk (remove_name_defined evk names)
 
 let reassign_name_defined evk evk' names =
-  let id = try Some (EvMap.find evk names.fwd_map) with Not_found -> None in
-  match id with
-  | None -> names (* evk' must not be defined *)
-  | Some id ->
-    { fwd_map = EvMap.add evk' id (EvMap.remove evk names.fwd_map);
-      rev_map = Id.Map.add id evk' (Id.Map.remove id names.rev_map);
-      fsh_map = names.fsh_map; }
+  try
+    let id = EvMap.find evk names.fwd_map in
+    if Lazy.is_val id then
+      (* id was already forced, so we must update reverse and fresh maps. *)
+      let name = Lazy.force id in
+      { fwd_map = EvMap.add evk' id (EvMap.remove evk names.fwd_map);
+        rev_map = Id.Map.set name evk' names.rev_map; (* overwrite old destination *)
+        fsh_map = names.fsh_map }
+    else
+      (* id is not computed, so we only need to update the forward map *)
+      { names with fwd_map = EvMap.add evk' id (EvMap.remove evk names.fwd_map) }
+  with Not_found ->
+    (* [evk] has no name. *)
+    names
 
 let ident evk names =
-  try Some (EvMap.find evk names.fwd_map) with Not_found -> None
+  try
+    let id = EvMap.find evk names.fwd_map in
+    force_name names evk id;
+    Some (Lazy.force id)
+  with Not_found -> None
 
 let key id names =
-  Id.Map.find id names.rev_map
+  (* First try to find it in [rev_map], and if it fails retry with names forced.
+     This works since forced names cannot collide with existing names. *)
+  try Id.Map.find id names.rev_map
+  with Not_found -> force_and_find id names
 
-let state names = names.fsh_map
+let state names =
+  force names;
+  names.fsh_map
 
 end
 
@@ -663,6 +713,9 @@ let expand_existential0 = expand_existential
 
 let rename evk id evd =
   { evd with evar_names = EvNames.rename evk id evd.evar_names }
+
+let transfer_name evk evk' evd =
+  { evd with evar_names = EvNames.reassign_name_defined evk evk' evd.evar_names }
 
 let add_with_name (type a) ?name ~typeclass_candidate d e (i : a evar_info) = match i.evar_body with
 | Evar_empty ->

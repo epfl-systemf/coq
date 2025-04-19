@@ -106,6 +106,9 @@ module type ExtS = sig
     val fold_right : (key -> 'a -> 'b -> 'b M.t) -> 'a t -> 'b -> 'b M.t
   end
 
+  val find_first2 : (key -> 'a -> bool) -> 'a t -> (key * 'a)
+  (** Like [Map.find_first] but takes the element in the predicate as well. *)
+
   val fold_left : (key -> 'a -> 'b -> 'b) -> 'a t -> 'b -> 'b
   (** Alias for {!fold}, to easily track where we depend on fold order. *)
 
