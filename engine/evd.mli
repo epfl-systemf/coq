@@ -111,6 +111,10 @@ type 'a evar_info
 
 type any_evar_info = EvarInfo : 'a evar_info -> any_evar_info
 
+type 'a or_fresh =
+| Static of 'a
+| Fresh of 'a
+
 (** {6 Projections from evar infos} *)
 
 val evar_concl : undefined evar_info -> econstr
@@ -195,7 +199,7 @@ val new_pure_evar :
   ?src:Evar_kinds.t Loc.located -> ?filter:Filter.t ->
   relevance:erelevance ->
   ?abstract_arguments:Abstraction.t -> ?candidates:econstr list ->
-  ?name:(Id.t Lazy.t) ->
+  ?name:Id.t or_fresh ->
   ?typeclass_candidate:bool ->
   named_context_val -> evar_map -> etypes -> evar_map * Evar.t
 (** Low-level interface to create an evar.
@@ -371,7 +375,7 @@ val evar_ident : Evar.t -> evar_map -> Id.t option
 
 val evar_has_ident : Evar.t -> evar_map -> bool
 
-val rename : Evar.t -> Id.t Lazy.t -> evar_map -> evar_map
+val rename : Evar.t -> Id.t or_fresh -> evar_map -> evar_map
 
 val transfer_name : Evar.t -> Evar.t -> evar_map -> evar_map
 

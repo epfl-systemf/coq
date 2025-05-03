@@ -387,10 +387,8 @@ let new_pure_evar = Evd.new_pure_evar
 
 let next_evar_name sigma naming = match naming with
 | IntroAnonymous -> None
-| IntroIdentifier id -> Some (Lazy.from_val id)
-| IntroFresh id ->
-  let id = lazy (Nameops.Fresh.next id (Evd.evar_names sigma)) in
-  Some id
+| IntroIdentifier id -> Some (Static id)
+| IntroFresh id -> Some (Fresh id)
 
 (* [new_evar] declares a new existential in an env env with type typ *)
 (* Converting the env into the sign of the evar to define *)

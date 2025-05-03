@@ -350,15 +350,19 @@ let { Goptions.get = accessible_goal_names } =
 
 module EvMap = Evar.Map
 
+type 'a or_fresh =
+| Static of 'a
+| Fresh of 'a
+
 module EvNames :
 sig
 
 type t
 
 val empty : t
-val add_name_undefined : Id.t Lazy.t option -> Evar.t -> 'a evar_info -> t -> t
+val add_name_undefined : Id.t or_fresh option -> Evar.t -> 'a evar_info -> t -> t
 val remove_name_defined : Evar.t -> t -> t
-val rename : Evar.t -> Id.t Lazy.t -> t -> t
+val rename : Evar.t -> Id.t or_fresh -> t -> t
 val reassign_name_defined : Evar.t -> Evar.t -> t -> t
 val ident : Evar.t -> t -> Id.t option
 val key : Id.t -> t -> Evar.t
@@ -367,14 +371,16 @@ val state : t -> Fresh.t
 end =
 struct
 
-(* NOTE: Mutability is present only for updating [rev_map] and [fsh_map] once an id is forced.
+
+(* NOTE: Mutability is present only for updating maps once a fresh name is evaluated.
 
 Invariants:
-- An ID with a not-yet-computed name does not appear in [rev_map] and [fsh_map].
-- An ID whose name was forced is present in [rev_map] and [fsh_map].
+- An evar with a not-yet-computed fresh name does not appear in any map except [fwd_names].
+- An evar whose fresh name was evaluated is present in [fwd_map], [rev_map] and [fsh_map].
 *)
+
 type t = {
-  fwd_map : Id.t Lazy.t EvMap.t;
+  fwd_map : Id.t or_fresh ref EvMap.t;
   mutable rev_map : Evar.t Id.Map.t;
   mutable fsh_map : Fresh.t;
 }
@@ -385,45 +391,53 @@ let empty = {
   fsh_map = Fresh.empty;
 }
 
-(* Force the name [id] of [evk]. *)
-let force_name names = fun evk id ->
-  if Lazy.is_val id then
-    (* id was already forced, so there is nothing to do. *)
-    ()
-  else
-    let id = Lazy.force id in
-    if Id.Map.mem id names.rev_map then
-      user_err (str "Already an existential evar of name " ++ Id.print id);
-    (* Update [rev_map] and [fsh_map]. *)
-    names.rev_map <- Id.Map.add id evk names.rev_map;
-    names.fsh_map <- Fresh.add id names.fsh_map
+(* Force the name [id] of [evk], and returns the forced name. *)
+let force_name names evk id =
+  match !id with
+  | Static name -> name (* Name was already forced, so there is nothing to do. *)
+  | Fresh name ->
+     (* Generate a fresh name. *)
+     let name = Nameops.Fresh.next name names.fsh_map in
+     (* Update [rev_map] and [fsh_map]. *)
+     names.rev_map <- Id.Map.add name evk names.rev_map;
+     names.fsh_map <- Fresh.add name names.fsh_map;
+     (* Make the change persistent. *)
+     id := Static name;
+     name
 
 (* Force all names. *)
-let force names = EvMap.iter (force_name names) names.fwd_map
+let force names = EvMap.iter (fun evk id -> let _ = force_name names evk id in ()) names.fwd_map
 
 (* Force all names until you find [id], and returns the associated evar. *)
 let force_and_find id names =
-  let eq evk id' =
-    force_name names evk id';
-    Id.equal id (Lazy.force id')
+  let core_id = Nameops.forget_subscript id in
+  let name_match evk id' =
+    match !id' with
+    | Static name -> Id.equal id name
+    | Fresh name ->
+       (* Only force fresh names that are equal to [id], up to suffix. *)
+       if Id.equal core_id name then
+         let name = force_name names evk id' in
+         Id.equal id name
+       else false
   in
-  let (evk, _) = EvMap.find_first2 eq names.fwd_map in
+  let (evk, _) = EvMap.find_first2 name_match names.fwd_map in
   evk
 
 (* Primitive method that adds name [id] to [evk] in [names].
    This method assumes that [evk] has no prior name. *)
 let add_name_newly_undefined id evk names =
-  if Lazy.is_val id then
-    (* id is already forced, so we immediately add it to [rev_map] and [fsh_map]. *)
-    let name = Lazy.force id in
+  match id with
+  | Static name ->
+    (* Name is static, so we check for collisions and add it to [rev_map] and [fsh_map]. *)
     if Id.Map.mem name names.rev_map then
       user_err (str "Already an existential evar of name " ++ Id.print name);
-    { fwd_map = EvMap.add evk id names.fwd_map;
+    { fwd_map = EvMap.add evk (ref id) names.fwd_map;
       rev_map = Id.Map.add name evk names.rev_map;
       fsh_map = Fresh.add name names.fsh_map }
-  else
-    (* id is not yet computed *)
-    { names with fwd_map = EvMap.add evk id names.fwd_map }
+  | Fresh name ->
+    (* Name is not yet computed *)
+    { names with fwd_map = EvMap.add evk (ref id) names.fwd_map }
 
 let add_name_undefined naming evk evi evar_names =
   if naming = None || EvMap.mem evk evar_names.fwd_map then
@@ -434,14 +448,14 @@ let add_name_undefined naming evk evi evar_names =
 let remove_name_defined evk names =
   try
     let id = EvMap.find evk names.fwd_map in
-    if Lazy.is_val id then
-      (* id was already forced *)
-      let id = Lazy.force id in
+    match !id with
+    | Static id ->
+      (* Name is already known, so clean up [rev_map] and [fsh_map] *)
       { fwd_map = EvMap.remove evk names.fwd_map;
         rev_map = Id.Map.remove id names.rev_map;
         fsh_map = Fresh.remove id names.fsh_map }
-    else
-      (* id is not computed, so it doesn't appear in rev_map/fsh_map *)
+    | Fresh id ->
+      (* Fresh name is not computed, so it doesn't appear in rev_map/fsh_map *)
       { names with fwd_map = EvMap.remove evk names.fwd_map }
   with Not_found ->
     (* [evk] has no name. *)
@@ -454,14 +468,15 @@ let rename evk id names =
 let reassign_name_defined evk evk' names =
   try
     let id = EvMap.find evk names.fwd_map in
-    if Lazy.is_val id then
-      (* id was already forced, so we must update reverse and fresh maps. *)
-      let name = Lazy.force id in
-      { fwd_map = EvMap.add evk' id (EvMap.remove evk names.fwd_map);
-        rev_map = Id.Map.set name evk' names.rev_map; (* overwrite old destination *)
-        fsh_map = names.fsh_map }
-    else
-      (* id is not computed, so we only need to update the forward map *)
+    match !id with
+    | Static name ->
+       (* Name was already forced, so we must update [fwd_map] and [rev_map].
+          [fsh_map] needs no update since the name is still in use. *)
+       { names with
+         fwd_map = EvMap.add evk' id (EvMap.remove evk names.fwd_map);
+         rev_map = Id.Map.set name evk' names.rev_map }
+    | Fresh name ->
+      (* Name is not computed, so we only need to update the forward map *)
       { names with fwd_map = EvMap.add evk' id (EvMap.remove evk names.fwd_map) }
   with Not_found ->
     (* [evk] has no name. *)
@@ -470,8 +485,7 @@ let reassign_name_defined evk evk' names =
 let ident evk names =
   try
     let id = EvMap.find evk names.fwd_map in
-    force_name names evk id;
-    Some (Lazy.force id)
+    Some (force_name names evk id)
   with Not_found -> None
 
 let key id names =
