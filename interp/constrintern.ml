@@ -2528,7 +2528,7 @@ let internalize globalenv env pattern_mode (_, ntnvars as lvar) c =
     | Some t ->
         let (ind,ind_ids,alias_subst,l) =
           intern_ind_pattern globalenv ntnvars (env_for_pattern (set_type_scope env)) t in
-        let (mib,mip) = Inductive.lookup_mind_specif globalenv ind in
+        let mib, mip = Environ.lookup_mind_specif globalenv ind in
         let nparams = (List.length (mib.Declarations.mind_params_ctxt)) in
         (* for "in Vect n", we answer (["n","n"],[(loc,"n")])
 

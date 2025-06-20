@@ -25,7 +25,6 @@ open Vars
 open Namegen
 open Declarations
 open Declareops
-open Inductive
 open Inductiveops
 open Environ
 open Reductionops
@@ -141,7 +140,7 @@ let build_branch_type env sigma dep p cs =
     it_mkProd_or_LetIn base cs.cs_args
 
 let check_valid_elimination env sigma (ind, u as pind) ~dep s =
-  let specif = Inductive.lookup_mind_specif env ind in
+  let specif = lookup_mind_specif env ind in
   let () =
     if dep && not (Inductiveops.has_dependent_elim specif) then
       raise (RecursionSchemeError (env, NotAllowedDependentAnalysis (false, ind)))

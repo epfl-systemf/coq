@@ -20,7 +20,6 @@ open Termops
 open EConstr
 open Vars
 open Namegen
-open Inductive
 open Inductiveops
 open Libnames
 open Globnames
@@ -800,7 +799,7 @@ let find_positions env sigma ~keep_proofs ~no_discr t1 t2 =
             let nparams = inductive_nparams env ind1 in
             let params1,rargs1 = List.chop nparams args1 in
             let _,rargs2 = List.chop nparams args2 in
-            let (mib,mip) = lookup_mind_specif env ind1 in
+            let mib, mip = Environ.lookup_mind_specif env ind1 in
             let ctxt = (get_constructor ((ind1,u1),mib,mip,params1) i1).cs_args in
             let adjust i = CVars.adjust_rel_to_rel_context ctxt (i+1) - 1 in
             List.flatten
@@ -911,9 +910,9 @@ let descend_then env sigma head dirn =
     with Not_found ->
       user_err Pp.(str "Cannot project on an inductive type derived from a dependency.")
   in
-  let (ind, _),_ = (dest_ind_family indf) in
+  let (ind, _), _ = (dest_ind_family indf) in
   let () = check_privacy env ind in
-  let (mib,mip) = lookup_mind_specif env ind in
+  let _, mip = Environ.lookup_mind_specif env ind in
   let cstr = get_constructors env indf in
   let dirn_nlams = cstr.(dirn-1).cs_nargs in
   let dirn_env = EConstr.push_rel_context cstr.(dirn-1).cs_args env in

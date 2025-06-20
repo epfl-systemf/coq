@@ -85,7 +85,7 @@ let optimize_non_type_induction_scheme kind dep sort env _handle ind =
     let sigma, cte = Evd.fresh_constant_instance env sigma cte in
     let c = mkConstU cte in
     let t = Typeops.type_of_constant_in env cte in
-    let (mib,mip) = Inductive.lookup_mind_specif env ind in
+    let mib, mip = Environ.lookup_mind_specif env ind in
     let npars =
       (* if a constructor of [ind] contains a recursive call, the scheme
          is generalized only wrt recursively uniform parameters *)
