@@ -396,11 +396,19 @@ let intern_hyp_location ist ((occs,id),hl) =
   ((Locusops.occurrences_map (List.map (intern_int_or_var ist)) occs,
    intern_hyp ist id), hl)
 
+let name_cons accu = function
+| Anonymous -> accu
+| Name id -> Id.Set.add id accu
+
+let opt_cons accu = function
+| None -> accu
+| Some id -> Id.Set.add id accu
+
 (* Reads a pattern *)
 let intern_pattern ist ?(as_type=false) ltacvars = function
-  | Subterm (ido,pc) ->
+  | Subterm (ido,n,pc) ->
       let (metas,pc) = intern_constr_pattern ist ~as_type:false ~ltacvars pc in
-      ido, metas, Subterm (ido,pc)
+      ido, name_cons metas n, Subterm (ido,n,pc)
   | Term pc ->
       let (metas,pc) = intern_constr_pattern ist ~as_type ~ltacvars pc in
       None, metas, Term pc
@@ -411,14 +419,6 @@ let intern_constr_may_eval ist = function
     ConstrContext (intern_hyp ist locid,intern_constr ist c)
   | ConstrTypeOf c -> ConstrTypeOf (intern_constr ist c)
   | ConstrTerm c -> ConstrTerm (intern_constr ist c)
-
-let name_cons accu = function
-| Anonymous -> accu
-| Name id -> Id.Set.add id accu
-
-let opt_cons accu = function
-| None -> accu
-| Some id -> Id.Set.add id accu
 
 (* Reads the hypotheses of a "match goal" rule *)
 let rec intern_match_goal_hyps ist ?(as_type=false) lfun = function

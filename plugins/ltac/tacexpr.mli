@@ -60,10 +60,11 @@ type ('constr,'dconstr,'id) induction_clause_list =
 
 type 'a with_bindings_arg = clear_flag * 'a with_bindings
 
+(* WIP: Ideally "as name" should be in constr and define an evar but I'm not doing it at that level so no way I'm doing that *)
 (* Type of patterns *)
 type 'a match_pattern =
   | Term of 'a
-  | Subterm of Id.t option * 'a
+  | Subterm of Id.t option * Name.t * 'a
 
 (* Type of hypotheses for a Match Context rule *)
 type 'a match_context_hyps =

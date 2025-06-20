@@ -235,6 +235,7 @@ GRAMMAR EXTEND Gram
   conversion:
     [ [ c = constr -> { (None, c) }
       | c1 = constr; "with"; c2 = constr -> { (Some (AllOccurrences,c1),c2) }
+      | c1 = constr; "as"; id = ident; "with"; c2 = constr -> { (Some (AllOccurrences,c1),c2) }
       | c1 = constr; "at"; occs = occs_nums; "with"; c2 = constr ->
           { deprecated_conversion_at_with ();  (* 8.14 *)
           (Some (occs,c1), c2) } ] ]

@@ -528,10 +528,10 @@ let pr_goal_selector ~toplevel s =
 
   let pr_match_pattern pr_pat = function
     | Term a -> pr_pat a
-    | Subterm (None,a) ->
-      keyword "context" ++ str" [ " ++ pr_pat a ++ str " ]"
-    | Subterm (Some id,a) ->
-      keyword "context" ++ spc () ++ pr_id id ++ str "[ " ++ pr_pat a ++ str " ]"
+    | Subterm (None,n,a) ->
+      keyword "context" ++ str" [ " ++ pr_pat a ++ pr_as_name n ++ str " ]"
+    | Subterm (Some id,n,a) ->
+      keyword "context" ++ spc () ++ pr_id id ++ str "[ " ++ pr_pat a ++ pr_as_name n ++ str " ]"
 
   let pr_match_hyps pr_pat = function
     | Hyp (nal,mp) ->

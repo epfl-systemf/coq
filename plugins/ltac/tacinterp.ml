@@ -1035,7 +1035,7 @@ let eval_pattern ist env sigma (bvars, _, pat) =
   (bvars, Patternops.interp_pattern env sigma lvars pat)
 
 let read_pattern ist env sigma = function
-  | Subterm (ido,c) -> Subterm (ido,eval_pattern ist env sigma c)
+  | Subterm (ido, n, c) -> Subterm (ido, n, eval_pattern ist env sigma c)
   | Term c -> Term (eval_pattern ist env sigma c)
 
 (* Reads the hypotheses of a Match Context rule *)
