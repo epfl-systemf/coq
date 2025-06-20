@@ -415,9 +415,7 @@ and of_constr_aux henv c =
   | Case (ci,u,pms,(p,r),iv,c,bl) ->
     let pctx, blctx =
       let specif = Environ.lookup_mind_specif henv.globals ci.ci_ind in
-      let pctx = Inductive.expand_arity specif (ci.ci_ind,u) pms (fst p) in
-      let blctx = Inductive.expand_branch_contexts specif u pms bl in
-      pctx, blctx
+      Environ.expand_case_contexts specif (ci.ci_ind, u) pms (fst p) bl
     in
     let of_ctx (bnd, c) bnd' =
       let _, bnd = Hashcons.hashcons_array hcons_annot bnd in

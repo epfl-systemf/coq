@@ -600,8 +600,8 @@ let map_constr_with_binders_left_to_right env sigma g f l c =
     let ev' = EConstr.map_existential sigma (fun c -> f l c) ev in
     if ev' == ev then c else mkEvar ev'
   | Case (ci,u,pms,(p,r),iv,b,bl) ->
-      let (ci, _, pms, (p0,_), _, b, bl0) = annotate_case env sigma (ci, u, pms, (p,r), iv, b, bl) in
-      let f_ctx (nas, _ as r) (ctx, c) =
+      let p0, bl0 = annotate_case env sigma (ci, u, pms, (p,r), iv, b, bl) in
+      let f_ctx (nas, c as r) ctx =
         let c' = f (List.fold_right g ctx l) c in
         if c' == c then r else (nas, c')
       in
@@ -666,8 +666,8 @@ let map_constr_with_full_binders env sigma g f l cstr =
     let ev' = EConstr.map_existential sigma (fun c -> f l c) ev in
     if ev' == ev then cstr else mkEvar ev'
   | Case (ci, u, pms, (p,r), iv, c, bl) ->
-      let (ci, _, pms, (p0,_), _, c, bl0) = annotate_case env sigma (ci, u, pms, (p,r), iv, c, bl) in
-      let f_ctx (nas, _ as r) (ctx, c) =
+      let p0, bl0 = annotate_case env sigma (ci, u, pms, (p,r), iv, c, bl) in
+      let f_ctx (nas, c as r) ctx =
         let c' = f (List.fold_right g ctx l) c in
         if c' == c then r else (nas, c')
       in
@@ -720,9 +720,10 @@ let fold_constr_with_full_binders env sigma g f n acc c =
     let args = Evd.expand_existential sigma ev in
     List.fold_left (fun c -> f n c) acc args
   | Case (ci, u, pms, p, iv, c, bl) ->
-    let (ci, _, pms, (p,_), _, c, bl) = EConstr.annotate_case env sigma (ci, u, pms, p, iv, c, bl) in
-    let f_ctx acc (ctx, c) = f (List.fold_right g ctx n) acc c in
-    Array.fold_left f_ctx (f n (fold_invert (f n) (f_ctx (Array.fold_left (f n) acc pms) p) iv) c) bl
+    let pctx, bctxl = EConstr.annotate_case env sigma (ci, u, pms, p, iv, c, bl) in
+    let f_ctx acc ctx (_, c) = f (List.fold_right g ctx n) acc c in
+    let pmsacc = Array.fold_left (f n) acc pms in
+    Array.fold_left2 f_ctx (f n (fold_invert (f n) (f_ctx pmsacc pctx (fst p)) iv) c) bctxl bl
   | Fix (_,(lna,tl,bl)) ->
       let n' = CArray.fold_left2_i (fun i c n t -> g (LocalAssum (n,lift i t)) c) n lna tl in
       let fd = Array.map2 (fun t b -> (t,b)) tl bl in

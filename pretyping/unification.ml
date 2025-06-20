@@ -1247,14 +1247,14 @@ let rec unify_0_with_initial_metas (subst : subst0) conv_at_top env cv_pb flags 
              let () = if not (QInd.equal curenv ci1.ci_ind ci2.ci_ind) then error_cannot_unify curenv sigma (cM,cN) in
              let opt' = {opt with at_top = true; with_types = false} in
              let substn = Array.fold_left2 (unirec_rec curenvnb CONV ~nargs:0 opt') substn pms1 pms2 in
-             let (ci1, _, _, (p1,_), _, c1, cl1) = EConstr.annotate_case env sigma (ci1, u1, pms1, p1, iv1, c1, cl1) in
-             let unif opt substn (ctx1, c1) (_, c2) =
+             let p1ctx, cctxl1 = EConstr.annotate_case env sigma (ci1, u1, pms1, p1, iv1, c1, cl1) in
+             let unif opt substn ctx1 (_, c1) (_, c2) =
                let curenvnb' = List.fold_right (fun decl (env, n) -> push_rel decl env, n + 1) ctx1 curenvnb in
                unirec_rec curenvnb' CONV opt' substn c1 c2
              in
-             let substn = unif opt' substn p1 p2 in
+             let substn = unif opt' substn p1ctx (fst p1) p2 in
              let substn = unirec_rec curenvnb CONV opt' substn c1 c2 in
-             Array.fold_left2 (unif {opt with at_top = true}) substn cl1 cl2
+             Array.fold_left3 (unif {opt with at_top = true}) substn cctxl1 cl1 cl2
              with ex when precatchable_exception ex ->
                reduce curenvnb pb opt substn cM cN)
 

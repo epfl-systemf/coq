@@ -442,8 +442,8 @@ struct
 
   let expand_case env sigma ((ci, u, pms, t, iv, br) : case_stk) =
     let dummy = mkProp in
-    let (ci, u, pms, t, _, _, br) = EConstr.annotate_case env sigma (ci, u, pms, t, iv, dummy, br) in
-    (ci, u, pms, t, br)
+    let tctx, brctx = EConstr.annotate_case env sigma (ci, u, pms, t, iv, dummy, br) in
+    ci, u, pms, on_fst (on_fst (fun _ -> tctx)) t, Array.map2 (fun ctx (_, t) -> ctx, t) brctx br
 
 end
 
@@ -704,7 +704,7 @@ let apply_branch env sigma (ind, i) args (ci, u, pms, iv, r, lf) =
   else
     (* For backwards compat with unification, we do not reduce the let-bindings
        upfront. *)
-    let ctx = expand_branch env sigma u pms (ind, i) br in
+    let ctx = annotate_branch env sigma u pms (ind, i) lf in
     applist (it_mkLambda_or_LetIn (snd br) ctx, args)
 
 
@@ -792,9 +792,9 @@ and apply_rule whrec env sigma ctx psubst es stk =
   | Declarations.PECase (pind, pret, pbrs) :: e, Stack.Case (ci, u, pms, p, iv, brs) :: s ->
       if not @@ QInd.equal env pind ci.ci_ind then raise PatternFailure;
       let dummy = mkProp in
-      let (_, _, _, ((ntys_ret, ret), _), _, _, brs) = EConstr.annotate_case env sigma (ci, u, pms, p, NoInvert, dummy, brs) in
-      let psubst = match_arg_pattern whrec env sigma (ntys_ret @ ctx) psubst pret ret in
-      let psubst = Array.fold_left2 (fun psubst pat (ctx', br) -> match_arg_pattern whrec env sigma (ctx' @ ctx) psubst pat br) psubst pbrs brs in
+      let ntys_ret, brctxs = EConstr.annotate_case env sigma (ci, u, pms, p, NoInvert, dummy, brs) in
+      let psubst = match_arg_pattern whrec env sigma (ntys_ret @ ctx) psubst pret (snd (fst p)) in
+      let psubst = Array.fold_left3 (fun psubst pat ctx' (_, br) -> match_arg_pattern whrec env sigma (ctx' @ ctx) psubst pat br) psubst pbrs brctxs brs in
       apply_rule whrec env sigma ctx psubst e s
   | Declarations.PEProj proj :: e, Stack.Proj (proj', r) :: s ->
       if not @@ QProjection.Repr.equal env proj (Projection.repr proj') then raise PatternFailure;

@@ -197,26 +197,26 @@ let pattern_of_constr ~broken env sigma t =
       | Evar_kinds.MatchingVar (Evar_kinds.SecondOrderPatVar ido) -> assert false
       | _ ->
         PMeta None)
-    | Case (ci, u, pms, p0, iv, a, br0) ->
-        let (ci, (p,_), iv, a, br) = Inductive.expand_case env (ci, u, pms, p0, iv, a, br0) in
-        let pattern_of_ctx c (nas, c0) =
-          let ctx, c = Term.decompose_lambda_n_decls (Array.length nas) c in
+    | Case (ci, u, pms, (p0, _), iv, a, br0) ->
+        let mind = Environ.lookup_mind_specif env ci.ci_ind in
+        let pctx, brctx = Environ.expand_case_contexts mind (ci.ci_ind, u) pms (fst p0) br0 in
+        let pattern_of_ctx ctx (nas, c) =
           let env = push_rel_context ctx env in
           let c = pattern_of_constr env c in
-          (Array.map Context.binder_name nas, c)
+          Array.map Context.binder_name nas, c
         in
-        let p = pattern_of_ctx p (fst p0) in
+        let p = pattern_of_ctx pctx p0 in
         let cip =
           { cip_style = ci.ci_pp_info.style;
             cip_ind = Some ci.ci_ind;
             cip_extensible = false }
         in
-        let branch_of_constr i c =
-          let nas, c = pattern_of_ctx c br0.(i) in
-          (i, nas, c)
+        let branch_of_constr i ctx br =
+          let nas, c = pattern_of_ctx ctx br in
+          i, nas, c
         in
         PCase (cip, Some p, pattern_of_constr env a,
-                Array.to_list (Array.mapi branch_of_constr br))
+                Array.to_list (Array.map2_i branch_of_constr brctx br0))
     | Fix (lni,(lna,tl,bl)) ->
        let push env na2 c2 = push_rel (LocalAssum (na2,c2)) env in
        let env' = Array.fold_left2 push env lna tl in

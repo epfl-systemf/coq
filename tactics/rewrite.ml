@@ -923,21 +923,14 @@ let make_leibniz_proof env c ty r =
       rew_from = subst1 r.rew_from c; rew_to = subst1 r.rew_to c; rew_prf = prf }
 
 let fold_match ?(force=false) env sigma c =
-  let case = destCase sigma c in
-  let (ci, (p,_), iv, c, brs) = EConstr.expand_case env sigma case in
+  let ci, _, _, ((_, body), _), _, _, brs as case = destCase sigma c in
+  let pctx, brctxs = EConstr.annotate_case env sigma case in
   let cty = Retyping.get_type_of env sigma c in
   let dep, pred, sk =
-    let env', ctx, body =
-      let ctx, pred = decompose_lambda_decls sigma p in
-      let env' = push_rel_context ctx env in
-        env', ctx, pred
-    in
-    let sortp = Retyping.get_sort_quality_of env' sigma body in
+    let sortp = Retyping.get_sort_quality_of (push_rel_context pctx env) sigma body in
     let sortc = Retyping.get_sort_quality_of env sigma cty in
     let dep = not (noccurn sigma 1 body) in
-    let pred = if dep then p else
-        it_mkProd_or_LetIn (subst1 mkProp body) (List.tl ctx)
-    in
+    let pred = if dep then body else it_mkProd_or_LetIn (subst1 mkProp body) (List.tl pctx) in
     let sk =
       (* not sure how correct this is *)
       if UnivGen.QualityOrSet.is_prop sortp then
@@ -954,10 +947,8 @@ let fold_match ?(force=false) env sigma c =
         else case_nodep)
     in
     match Ind_tables.lookup_scheme sk ci.ci_ind with
-    | Some cst ->
-        dep, pred, cst
-    | None ->
-      raise Not_found
+    | Some cst -> dep, pred, cst
+    | None -> raise Not_found
   in
   let app =
     let sk = if Global.is_polymorphic (ConstRef sk)
@@ -966,8 +957,9 @@ let fold_match ?(force=false) env sigma c =
     in
     let ind, args = Inductiveops.find_mrectype env sigma cty in
     let pars, args = List.chop ci.ci_npar args in
-    let meths = Array.to_list brs in
-      applist (sk, pars @ [pred] @ meths @ args @ [c])
+    let acc = args @ [c] in
+    let acc = Array.fold_right2 (fun (_, br) ctx acc -> it_mkLambda_or_LetIn br ctx :: acc) brs brctxs acc in
+    applist (sk, pars @ pred :: acc)
   in
     sk, app
 

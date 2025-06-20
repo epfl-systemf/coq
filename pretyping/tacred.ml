@@ -945,7 +945,7 @@ and reduce_case infos env sigma (ci, u, pms, p, iv, c, lf) =
   | Construct ((_, i as cstr),u) ->
     let real_cargs = List.skipn ci.ci_npar args in
     let br = lf.(i - 1) in
-    let ctx = EConstr.expand_branch env sigma u pms cstr br in
+    let ctx = EConstr.annotate_branch env sigma u pms cstr lf in
     let br = it_mkLambda_or_LetIn (snd br) ctx in
     Reduced (applist (br, real_cargs))
   | CoFix (bodynum,(names,_,_) as cofix) ->

@@ -193,7 +193,10 @@ let fold_with_full_binders g f n acc c =
   | Evar _ -> assert false
   | Case (ci, u, pms, p, iv, c, bl) ->
     let mib = lookup_mind (fst ci.ci_ind) in
-    let (ci, (p,_), iv, c, bl) = Inductive.expand_case_specif mib (ci, u, pms, p, iv, c, bl) in
+    let mip = mib.mind_packets.(snd ci.ci_ind) in
+    let _, (p, _), _, _, bl =
+      Inductive.expand_case_specif (mib, mip) (ci, u, pms, p, iv, c, bl)
+    in
     Array.fold_left (f n) (f n (fold_invert (f n) (f n acc p) iv) c) bl
   | Fix (_,(lna,tl,bl)) ->
       let n' = CArray.fold_left2_i (fun i c n t -> g (LocalAssum (n,lift i t)) c) n lna tl in

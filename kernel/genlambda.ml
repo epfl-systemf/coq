@@ -717,8 +717,10 @@ let rec lambda_of_constr cache env sigma c =
     mknode @@ Lproj (Projection.repr p, c)
 
   | Case (ci, u, pms, t, iv, a, br) -> (* XXX handle iv *)
-    let (ci, (t,_), _iv, a, branches) = Inductive.expand_case env (ci, u, pms, t, iv, a, br) in
     let mib, oib = lookup_mind_specif env ci.ci_ind in
+    let _, (t, _), _, _, branches =
+      Inductive.expand_case_specif (mib, oib) (ci, u, pms, t, iv, a, br)
+    in
     let tbl = oib.mind_reloc_tbl in
     (* Building info *)
     let annot_sw = (ci, tbl, mib.mind_finite) in

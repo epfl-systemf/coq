@@ -474,16 +474,10 @@ let rec strip_app = function
   | APP (args,st) -> APP (args,strip_app st)
   | s -> TOP
 
-(* TODO: share the common parts with EConstr *)
 let expand_branch env u pms (ind, i) br =
-  let open Declarations in
-  let nas, _br = br.(i - 1) in
-  let mib, mip = Environ.lookup_mind_specif env ind in
-  let paramdecl = Vars.subst_instance_context u mib.mind_params_ctxt in
-  let paramsubst = Vars.subst_of_rel_context_instance paramdecl pms in
-  let (ctx, _) = mip.mind_nf_lc.(i - 1) in
-  let (ctx, _) = List.chop mip.mind_consnrealdecls.(i - 1) ctx in
-  Inductive.instantiate_context u paramsubst nas ctx
+  let mind = Environ.lookup_mind_specif env ind in
+  let paramsubst = Environ.expand_match_param_context mind u pms in
+  Environ.expand_branch_context mind u paramsubst br (i - 1)
 
 let cbv_subst_of_rel_context_instance_list mkclos sign args env =
   let rec aux subst sign l =
@@ -647,85 +641,85 @@ and cbv_stack_value info env = function
         apply env (lams - 1) args
     in
     apply env nlams args
-    (* a Fix applied enough -> IOTA *)
-    | (FIX(fix,env,[||]), stk)
-        when fixp_reducible info.reds fix stk ->
-        let (envf,redfix) = contract_fixp env fix in
-        cbv_stack_term info stk envf redfix
+  (* a Fix applied enough -> IOTA *)
+  | (FIX(fix,env,[||]), stk)
+      when fixp_reducible info.reds fix stk ->
+      let (envf,redfix) = contract_fixp env fix in
+      cbv_stack_term info stk envf redfix
 
-    (* constructor guard satisfied or Cofix in a Case -> IOTA *)
-    | (COFIX(cofix,env,[||]), stk)
-        when cofixp_reducible info.reds cofix stk->
-        let (envf,redfix) = contract_cofixp env cofix in
-        cbv_stack_term info stk envf redfix
+  (* constructor guard satisfied or Cofix in a Case -> IOTA *)
+  | (COFIX(cofix,env,[||]), stk)
+      when cofixp_reducible info.reds cofix stk->
+      let (envf,redfix) = contract_cofixp env cofix in
+      cbv_stack_term info stk envf redfix
 
-    (* constructor in a Case -> IOTA *)
-    | (CONSTRUCT(((sp,n),_),[||]), APP(args,CASE(u,pms,_p,br,iv,ci,env,stk)))
-            when red_set info.reds fMATCH ->
-        let cargs = List.skipn ci.ci_npar args in
-        let env =
-          if (Int.equal ci.ci_cstr_ndecls.(n - 1) ci.ci_cstr_nargs.(n - 1)) then (* no lets *)
-            List.fold_left (fun accu v -> subs_cons v accu) env cargs
-          else
-            let mkclos env c = cbv_stack_term info TOP env c in
-            let ctx = expand_branch info.env u pms (sp, n) br in
-            cbv_subst_of_rel_context_instance_list mkclos ctx cargs env
-        in
-        cbv_stack_term info stk env (snd br.(n-1))
+  (* constructor in a Case -> IOTA *)
+  | (CONSTRUCT(((sp,n),_),[||]), APP(args,CASE(u,pms,_p,br,iv,ci,env,stk)))
+          when red_set info.reds fMATCH ->
+      let cargs = List.skipn ci.ci_npar args in
+      let env =
+        if (Int.equal ci.ci_cstr_ndecls.(n - 1) ci.ci_cstr_nargs.(n - 1)) then (* no lets *)
+          List.fold_left (fun accu v -> subs_cons v accu) env cargs
+        else
+          let mkclos env c = cbv_stack_term info TOP env c in
+          let ctx = expand_branch info.env u pms (sp, n) br in
+          cbv_subst_of_rel_context_instance_list mkclos ctx cargs env
+      in
+      cbv_stack_term info stk env (snd br.(n-1))
 
-    (* constructor of arity 0 in a Case -> IOTA *)
-    | (CONSTRUCT(((sp, n), _),[||]), CASE(u,pms,_,br,_,ci,env,stk))
-            when red_set info.reds fMATCH ->
-        let env =
-          if (Int.equal ci.ci_cstr_ndecls.(n - 1) ci.ci_cstr_nargs.(n - 1)) then (* no lets *)
-            env
-          else
-            let mkclos env c = cbv_stack_term info TOP env c in
-            let ctx = expand_branch info.env u pms (sp, n) br in
-            cbv_subst_of_rel_context_instance_list mkclos ctx [] env
-        in
-        cbv_stack_term info stk env (snd br.(n-1))
+  (* constructor of arity 0 in a Case -> IOTA *)
+  | (CONSTRUCT(((sp, n), _),[||]), CASE(u,pms,_,br,_,ci,env,stk))
+          when red_set info.reds fMATCH ->
+      let env =
+        if (Int.equal ci.ci_cstr_ndecls.(n - 1) ci.ci_cstr_nargs.(n - 1)) then (* no lets *)
+          env
+        else
+          let mkclos env c = cbv_stack_term info TOP env c in
+          let ctx = expand_branch info.env u pms (sp, n) br in
+          cbv_subst_of_rel_context_instance_list mkclos ctx [] env
+      in
+      cbv_stack_term info stk env (snd br.(n-1))
 
-    (* constructor in a Projection -> IOTA *)
-    | (CONSTRUCT(((sp,n),u),[||]), APP(args,PROJ(p,_,stk)))
-        when red_set info.reds fMATCH && Projection.unfolded p ->
-      let arg = List.nth args (Projection.npars p + Projection.arg p) in
-        cbv_stack_value info env (strip_appl arg stk)
+  (* constructor in a Projection -> IOTA *)
+  | (CONSTRUCT(((sp,n),u),[||]), APP(args,PROJ(p,_,stk)))
+      when red_set info.reds fMATCH && Projection.unfolded p ->
+    let arg = List.nth args (Projection.npars p + Projection.arg p) in
+      cbv_stack_value info env (strip_appl arg stk)
 
-    (* may be reduced later by application *)
-    | (FIX(fix,env,[||]), APP(appl,TOP)) -> FIX(fix,env,Array.of_list appl)
-    | (COFIX(cofix,env,[||]), APP(appl,TOP)) -> COFIX(cofix,env,Array.of_list appl)
-    | (CONSTRUCT(c,[||]), APP(appl,TOP)) -> CONSTRUCT(c,Array.of_list appl)
+  (* may be reduced later by application *)
+  | (FIX(fix,env,[||]), APP(appl,TOP)) -> FIX(fix,env,Array.of_list appl)
+  | (COFIX(cofix,env,[||]), APP(appl,TOP)) -> COFIX(cofix,env,Array.of_list appl)
+  | (CONSTRUCT(c,[||]), APP(appl,TOP)) -> CONSTRUCT(c,Array.of_list appl)
 
-    (* primitive apply to arguments *)
-    | (PRIMITIVE(op,(_,u as c),[||]), APP(appl,stk)) ->
-      let nargs = CPrimitives.arity op in
-      begin match List.chop nargs appl with
-      | (args, appl) ->
-        let stk = if List.is_empty appl then stk else stack_app appl stk in
-        begin match VredNative.red_prim info.env () op u (Array.of_list args) with
-        | Some (CONSTRUCT (c, args)) ->
-          (* args must be moved to the stack to allow future reductions *)
-          cbv_stack_value info env (CONSTRUCT(c, [||]), stack_vect_app args stk)
-        | Some v ->  cbv_stack_value info env (v,stk)
-        | None -> mkSTACK(PRIMITIVE(op,c,Array.of_list args), stk)
-        end
-      | exception Failure _ ->
-        (* partial application *)
-              (assert (stk = TOP);
-               PRIMITIVE(op,c,Array.of_list appl))
-        end
-    | SYMBOL ({ cst; rules; stk } as s ), stk' ->
-        let stk = stack_concat stk stk' in
-        begin try
-          let rhs, stack = cbv_apply_rules info env (snd cst) rules stk in
-          cbv_stack_value info env (destack rhs stack)
-        with PatternFailure ->
-          SYMBOL { s with stk }
-        end
+  (* primitive apply to arguments *)
+  | (PRIMITIVE(op,(_,u as c),[||]), APP(appl,stk)) ->
+    let nargs = CPrimitives.arity op in
+    begin match List.chop nargs appl with
+    | (args, appl) ->
+      let stk = if List.is_empty appl then stk else stack_app appl stk in
+      begin match VredNative.red_prim info.env () op u (Array.of_list args) with
+      | Some (CONSTRUCT (c, args)) ->
+        (* args must be moved to the stack to allow future reductions *)
+        cbv_stack_value info env (CONSTRUCT(c, [||]), stack_vect_app args stk)
+      | Some v ->  cbv_stack_value info env (v,stk)
+      | None -> mkSTACK(PRIMITIVE(op,c,Array.of_list args), stk)
+      end
+    | exception Failure _ ->
+      (* partial application *)
+            (assert (stk = TOP);
+              PRIMITIVE(op,c,Array.of_list appl))
+      end
+  | SYMBOL ({ cst; rules; stk } as s ), stk' ->
+      let stk = stack_concat stk stk' in
+      begin try
+        let rhs, stack = cbv_apply_rules info env (snd cst) rules stk in
+        cbv_stack_value info env (destack rhs stack)
+      with PatternFailure ->
+        SYMBOL { s with stk }
+      end
 
-    (* definitely a value *)
-    | (head,stk) -> mkSTACK(head, stk)
+  (* definitely a value *)
+  | (head,stk) -> mkSTACK(head, stk)
 
 and cbv_value_cache info ref =
   try KeyTable.find info.tab ref with
@@ -871,9 +865,8 @@ and cbv_apply_rule info env ctx psubst es stk =
   | Declarations.PECase (pind, pret, pbrs) :: e, CASE (u, pms, (p, _), brs, iv, ci, env, s) ->
       if not @@ Environ.QInd.equal info.env pind ci.ci_ind then raise PatternFailure;
       let specif = Environ.lookup_mind_specif info.env ci.ci_ind in
-      let ntys_ret = Inductive.expand_arity specif (ci.ci_ind, u) pms (fst p) in
+      let ntys_ret, ntys_brs = Environ.expand_case_contexts specif (ci.ci_ind, u) pms (fst p) brs in
       let ntys_ret = apply_env_context env ntys_ret in
-      let ntys_brs = Inductive.expand_branch_contexts specif u pms brs in
       let brs = Array.map2 (fun ctx' br -> List.length ctx', ctx' @ ctx, (snd br)) ntys_brs brs in
       let psubst = cbv_match_arg_pattern_lift info env (ntys_ret @ ctx) (List.length ntys_ret) psubst pret (snd p) in
       let psubst = Array.fold_left2 (fun psubst pat (n, ctx, br) -> cbv_match_arg_pattern_lift info env (apply_env_context env ctx) n psubst pat br) psubst pbrs brs in
@@ -912,15 +905,12 @@ let rec apply_stack info t = function
   | APP (args,st) ->
     (* Note: should "theoretically" use a right-to-left version of map_of_list *)
       apply_stack info (mkApp(t,Array.map_of_list (cbv_norm_value info) args)) st
-  | CASE (u,pms,ty,br,iv,ci,env,st) ->
+  | CASE (u, pms, (ty, r), br, iv, ci, env, st) ->
     (* FIXME: Prevent this expansion by caching whether an inductive contains let-bindings *)
-    let (_, (ty,r), _, _, br) = Inductive.expand_case info.env (ci, u, pms, ty, iv, mkProp, br) in
-    let ty =
-      let _, mip = Environ.lookup_mind_specif info.env ci.ci_ind in
-      Term.decompose_lambda_n_decls (mip.Declarations.mind_nrealdecls + 1) ty
-    in
-    let mk_br c n = Term.decompose_lambda_n_decls n c in
-    let br = Array.map2 mk_br br ci.ci_cstr_ndecls in
+    let mind = Environ.lookup_mind_specif info.env ci.ci_ind in
+    let tyctx, brctx = Environ.expand_case_contexts mind (ci.ci_ind, u) pms (fst ty) br in
+    let mk_br ctx (_, c) = ctx, c in
+    let br = Array.map2 mk_br brctx br in
     let aux = if info.strong then cbv_norm_term info else apply_env in
     let map_ctx (nas, c) =
       let open Context.Rel.Declaration in
@@ -936,7 +926,7 @@ let rec apply_stack info t = function
       (nas, aux env c)
     in
       apply_stack info
-        (mkCase (ci, u, Array.map (aux env) pms, (map_ctx ty,r), iv, t,
+        (mkCase (ci, u, Array.map (aux env) pms, (map_ctx (tyctx, snd ty), r), iv, t,
                     Array.map map_ctx br))
         st
   | PROJ (p, r, st) ->

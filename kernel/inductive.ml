@@ -461,79 +461,66 @@ let is_primitive_record (mib,_) =
   | PrimRecord _ -> true
   | NotRecord | FakeRecord -> false
 
-(** {6 Changes of representation of Case nodes} *)
-
-(** Provided:
-    - a universe instance [u]
-    - a term substitution [subst]
-    - name replacements [nas]
-    [instantiate_context u subst nas ctx] applies both [u] and [subst] to [ctx]
-    while replacing names using [nas] (order reversed)
-*)
-let instantiate_context = Environ.instantiate_context
-
-let expand_arity = Environ.expand_arity
-
-let expand_branch_contexts = Environ.expand_branch_contexts
+(** {7 Changes of representation of Case nodes} *)
 
 type ('constr,'types,'r) pexpanded_case =
   (case_info * ('constr * 'r) * 'constr pcase_invert * 'constr * 'constr array)
 
 type expanded_case = (constr,types,Sorts.relevance) pexpanded_case
 
-let expand_case_specif mib (ci, u, params, (p,rp), iv, c, br) =
+let expand_branch mind (_, u, params, _, _, _, brs) i =
+  let _, br = brs.(i) in
+  let paramsubst = expand_match_param_context mind u params in
+  let ctx = expand_branch_context mind u paramsubst brs i in
+  Term.it_mkLambda_or_LetIn br ctx
+
+let expand_branches mind (_, u, params, _, _, _, br) =
+  let paramsubst = expand_match_param_context mind u params in
+  let brctx = expand_branch_contexts mind u paramsubst br in
+  Array.map2 (fun (_, t) tctx -> Term.it_mkLambda_or_LetIn t tctx) br brctx
+
+let expand_arity mind (ci, u, params, ((p, pt), _), _, _, _) =
+  let paramsubst = expand_match_param_context mind u params in
+  let pctx = expand_arity_context mind (ci.ci_ind, u) paramsubst p in
+  Term.it_mkLambda_or_LetIn pt pctx
+
+let expand_case_specif mind (ci, u, params, ((p, pt), rp), iv, c, br) =
   (* Γ ⊢ c : I@{u} params args *)
   (* Γ, indices, self : I@{u} params indices ⊢ p : Type *)
-  let mip = mib.mind_packets.(snd ci.ci_ind) in
-  let paramdecl = Vars.subst_instance_context u mib.mind_params_ctxt in
-  let paramsubst = Vars.subst_of_rel_context_instance paramdecl params in
-  (* Expand the return clause *)
-  let ep =
-    let (nas, p) = p in
-    let realdecls = expand_arity (mib, mip) (ci.ci_ind, u) params nas in
-    Term.it_mkLambda_or_LetIn p realdecls
-  in
-  (* Expand the branches *)
-  let ebr =
-    let build_one_branch i (nas, br) (ctx, _) =
-      let ctx, _ = List.chop mip.mind_consnrealdecls.(i) ctx in
-      let ctx = instantiate_context u paramsubst nas ctx in
-      Term.it_mkLambda_or_LetIn br ctx
-    in
-    Array.map2_i build_one_branch br mip.mind_nf_lc
-  in
-  (ci, (ep,rp), iv, c, ebr)
+  let pctx, brctx = expand_case_contexts mind (ci.ci_ind, u) params p br in
+  let ep = Term.it_mkLambda_or_LetIn pt pctx in
+  let ebr =  Array.map2 (fun (_, t) tctx -> Term.it_mkLambda_or_LetIn t tctx) br brctx in
+  ci, (ep,rp), iv, c, ebr
 
 let expand_case env (ci, _, _, _, _, _, _ as case) =
-  let specif = Environ.lookup_mind (fst ci.ci_ind) env in
-  expand_case_specif specif case
+  expand_case_specif (lookup_mind_specif env ci.ci_ind) case
 
-let contract_case env (ci, (p,rp), iv, c, br) =
+let contract_case env (ci, (p, rp), iv, c, br) =
   let mib, mip = lookup_mind_specif env ci.ci_ind in
-  let (arity, p) = Term.decompose_lambda_n_decls (mip.mind_nrealdecls + 1) p in
-  let (u, pms) = match arity with
+  let arity, p = Term.decompose_lambda_n_decls (mip.mind_nrealdecls + 1) p in
+  let u, pms = match arity with
   | LocalAssum (_, ty) :: _ ->
     (** Last binder is the self binder for the term being eliminated *)
-    let (ind, args) = decompose_app ty in
-    let (ind, u) = destInd ind in
-    let () = assert (QInd.equal env ind ci.ci_ind) in
+    let ind, args = decompose_app ty in
+    let ind, u = destInd ind in
+    assert (QInd.equal env ind ci.ci_ind);
     let pms = Array.sub args 0 mib.mind_nparams in
     (** Unlift the parameters from under the index binders *)
     let dummy = List.make mip.mind_nrealdecls mkProp in
     let pms = Array.map (fun c -> Vars.substl dummy c) pms in
-    (u, pms)
+    u, pms
   | _ -> assert false
   in
   let p =
     let nas = Array.of_list (List.rev_map get_annot arity) in
-    ((nas, p),rp)
+    (nas, p), rp
   in
   let map i br =
-    let (ctx, br) = Term.decompose_lambda_n_decls mip.mind_consnrealdecls.(i) br in
+    let ctx, br = Term.decompose_lambda_n_decls mip.mind_consnrealdecls.(i) br in
     let nas = Array.of_list (List.rev_map get_annot ctx) in
-    (nas, br)
+    nas, br
   in
-  (ci, u, pms, p, iv, c, Array.mapi map br)
+  ci, u, pms, p, iv, c, Array.mapi map br
 
 (************************************************************************)
 (* Type of case branches *)
@@ -1029,18 +1016,18 @@ let rec subterm_specif ?evars renv stack t =
     match kind f with
     | Rel k -> subterm_var k renv
     | Case (ci, u, pms, p, iv, c, lbr) -> (* iv ignored: it's just a cache *)
-      let (ci, (p,_), _iv, c, lbr) = expand_case renv.env (ci, u, pms, p, iv, c, lbr) in
-       let stack' = push_stack_closures renv l stack in
-       let cases_spec =
-         branches_specif renv (lazy_subterm_specif ?evars renv [] c) ci
-       in
-       let stl =
-         Array.mapi (fun i br' ->
-                     let stack_br = push_stack_args (cases_spec.(i)) stack' in
-                     subterm_specif ?evars renv stack_br br')
-                    lbr in
-       let spec = subterm_spec_glb stl in
-       restrict_spec ?evars renv.env spec p
+      let _, (p, _), _, _, lbr = expand_case renv.env (ci, u, pms, p, iv, c, lbr) in
+      let stack' = push_stack_closures renv l stack in
+      let cases_spec =
+        branches_specif renv (lazy_subterm_specif ?evars renv [] c) ci
+      in
+      let stl =
+        Array.mapi (fun i br' ->
+                    let stack_br = push_stack_args (cases_spec.(i)) stack' in
+                    subterm_specif ?evars renv stack_br br')
+                   lbr in
+      let spec = subterm_spec_glb stl in
+      restrict_spec ?evars renv.env spec p
 
     | Fix ((recindxs,i),(_,typarray,bodies as recdef)) ->
       (* when proving that the fixpoint f(x)=e is less than n, it is enough
@@ -1366,7 +1353,7 @@ let check_one_fix ?evars renv recpos trees def =
                 | LocalDef (_,c,_) -> Some (lift p c, []))
 
         | Case (ci, u, pms, ret, iv, c_0, br) -> (* iv ignored: it's just a cache *)
-            let (ci, (p,_), _iv, c_0, brs) = expand_case renv.env (ci, u, pms, ret, iv, c_0, br) in
+            let _, (p, _), _, _, brs = expand_case renv.env (ci, u, pms, ret, iv, c_0, br) in
             let needreduce_c_0, rs = check_rec_call renv rs c_0 in
             let rs = check_inert_subterm_rec_call renv rs p in
             (* compute the recarg info for the arguments of each branch *)
@@ -1747,7 +1734,7 @@ let check_one_cofix ?evars env nbfix def deftype =
 
         | Case (ci, u, pms, p, iv, tm, br) -> (* iv ignored: just a cache *)
           begin
-            let (_, (p,_), _iv, tm, vrest) = expand_case env (ci, u, pms, p, iv, tm, br) in
+            let _, (p, _), _, _, vrest = expand_case env (ci, u, pms, p, iv, tm, br) in
             let tree = match restrict_spec ?evars env (Subterm (Int.Set.empty, Strict, tree)) p with
             | Dead_code -> assert false
             | Subterm (_, _, tree') -> tree'

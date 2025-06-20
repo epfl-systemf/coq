@@ -461,9 +461,15 @@ val is_global : Environ.env -> Evd.evar_map -> GlobRef.t -> t -> bool
 val expand_case : Environ.env -> Evd.evar_map ->
   case -> (t,t,ERelevance.t) Inductive.pexpanded_case
 
-val annotate_case : Environ.env -> Evd.evar_map -> case ->
-  case_info * EInstance.t * t array * ((rel_context * t) * ERelevance.t) * case_invert * t * (rel_context * t) array
+val annotate_case : Environ.env -> Evd.evar_map -> case -> rel_context * rel_context array
 (** Same as above, but doesn't turn contexts into binders *)
+
+val expand_branches : Environ.env -> Evd.evar_map -> case -> t array
+
+val expand_arity : Environ.env -> Evd.evar_map -> case -> t
+
+val annotate_branch : Environ.env -> Evd.evar_map ->
+  EInstance.t -> t array -> constructor -> case_branch array -> rel_context
 
 val expand_branch : Environ.env -> Evd.evar_map ->
   EInstance.t -> t array -> constructor -> case_branch -> rel_context
