@@ -162,6 +162,9 @@ val build_branches_type :
    given inductive type. *)
 val check_case_info : env -> pinductive -> case_info -> unit
 
+val contract_fix : fixpoint -> constr
+val contract_cofix : cofixpoint -> constr
+
 (** {6 Guard conditions for fix and cofix-points. } *)
 
 (** [is_primitive_positive_container env c] tells if the constant [c] is
