@@ -417,21 +417,22 @@ module Intern = struct
     pattern_of_glob : Glob_term.glob_constr -> 'pat;
   }
 
+  let intern_global_reference_non_local ist qid =
+    try Smartlocate.locate_global_with_alias ~head:true qid
+    with
+    | Not_found as exn ->
+      if not ist.strict_check && qualid_is_ident qid then
+        let id = qualid_basename qid in
+        GlobRef.VarRef id
+      else
+        let _, info = Exninfo.capture exn in
+        Nametab.error_global_not_found ~info qid
+
   let intern_global_reference ist qid =
     match ist.local_ref qid with
     | Some v -> v
     | None ->
-      let r =
-        try Smartlocate.locate_global_with_alias ~head:true qid
-        with
-        | Not_found as exn ->
-          if not ist.strict_check && qualid_is_ident qid then
-            let id = qualid_basename qid in
-            GlobRef.VarRef id
-          else
-            let _, info = Exninfo.capture exn in
-            Nametab.error_global_not_found ~info qid
-      in
+      let r = intern_global_reference_non_local ist qid in
       let short =
         if qualid_is_ident qid && not ist.strict_check then
           Some (make ?loc:qid.CAst.loc @@ qualid_basename qid)
@@ -501,7 +502,7 @@ module Intern = struct
              Option.map (intern_typed_pattern_or_ref_with_occurrences ist) o)
     | CbvVm o -> CbvVm (Option.map (intern_typed_pattern_or_ref_with_occurrences ist) o)
     | CbvNative o -> CbvNative (Option.map (intern_typed_pattern_or_ref_with_occurrences ist) o)
-    | (Red | Hnf | ExtraRedExpr _ as r ) -> r
+    | (Red | Hnf | ExtraRedExpr _ as r) -> r
 
   let intern_constr env c =
     Constrintern.intern_gen WithoutTypeConstraint ~strict_check:true env (Evd.from_env env) c

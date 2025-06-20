@@ -5,6 +5,8 @@ val pr_with_occurrences :
 
 val pr_short_red_flag : ('a -> Pp.t) -> 'a glob_red_flag -> Pp.t
 val pr_red_flag : ('a -> Pp.t) -> 'a glob_red_flag -> Pp.t
+val pr_reduction : ('a -> Pp.t) -> ('b -> Pp.t) -> ('c -> Pp.t) -> (string -> Pp.t)
+  -> ('a, 'b, 'c) Step.reduction -> Pp.t
 
 val pr_red_expr : ('a -> Pp.t) * ('a -> Pp.t) * ('b -> Pp.t) * ('c -> Pp.t) * ('v -> Pp.t)
   -> (string -> Pp.t) ->

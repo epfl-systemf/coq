@@ -95,7 +95,7 @@ module Interp : sig
   }
 
   val interp_red_expr : ('constr,'evref,'pat) interp_env -> Environ.env -> Evd.evar_map
-    -> ('constr,'evref,'pat, int Locus.or_var) red_expr_gen -> Evd.evar_map * red_expr
+    -> ('constr,'evref,'pat,int Locus.or_var) red_expr_gen -> Evd.evar_map * red_expr
 
   val without_ltac : (Glob_term.glob_constr, Evaluable.t, Glob_term.glob_constr) interp_env
 
