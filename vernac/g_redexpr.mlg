@@ -33,12 +33,13 @@ let occs_nums = Entry.make "occs_nums"
 let occs = Entry.make "occs"
 let delta_flag = Entry.make "delta_flag"
 let strategy_flag = Entry.make "strategy_flag"
+let reduction = Entry.make "reduction"
 }
 
 
 GRAMMAR EXTEND Gram
   GLOBAL: int_or_var nat_or_var occs occs_nums unfold_occ pattern_occ
-    delta_flag strategy_flag ref_or_pattern_occ red_expr;
+    delta_flag strategy_flag reduction ref_or_pattern_occ red_expr;
 
   int_or_var:
     [ [ n = integer  -> { ArgArg n }
@@ -90,10 +91,32 @@ GRAMMAR EXTEND Gram
       | h = OPT [ IDENT "head" -> { () } ]; d = delta_flag -> { all_with ~head:(Option.has_some h) d }
     ] ]
   ;
+  reduction:
+    [ [ IDENT "cast" -> { Step.Cast AtLeastOneOccurrence }
+      | IDENT "beta"; name = OPT ident -> { Step.Beta (name, AtLeastOneOccurrence) }
+      | IDENT "zeta"; name = OPT ident -> { Step.Zeta (name, AtLeastOneOccurrence) }
+      | IDENT "zeta_match"; pc = smart_global; proj = OPT nat_or_var
+        -> { Step.ZetaMatch ((pc, proj), AtLeastOneOccurrence) }
+      | IDENT "delta"; name = OPT smart_global -> { Step.Delta (name, AtLeastOneOccurrence) }
+      | IDENT "eta"; pc = OPT smart_global -> { Step.Eta AtLeastOneOccurrence } (* TODO either binder name or type/constructor *)
+      | IDENT "evar" -> { Step.Evar AtLeastOneOccurrence }
+      | IDENT "iota_fix"; name = OPT ident -> { Step.IotaFix (name, AtLeastOneOccurrence) }
+      | IDENT "iota_fix'"; name = OPT ident -> { Step.IotaFixPrime (name, AtLeastOneOccurrence) }
+      | IDENT "iota_cofix"; name = OPT ident -> { Step.IotaCofix (name, AtLeastOneOccurrence) }
+      | IDENT "iota_cofix'"; name = OPT ident -> { Step.IotaCofixPrime (name, AtLeastOneOccurrence) }
+      | IDENT "iota_match"; pc = smart_global -> { Step.IotaMatch AtLeastOneOccurrence } (* NEXT optional type/constructor name *)
+      | IDENT "root" -> { Step.Root }
+      | IDENT "head" -> { Step.Head } (* TODO: number *)
+      | IDENT "cbv" -> { Step.Cbv } (* TODO: number or "until global/focus" closure *)
+      | IDENT "cbn" -> { Step.Cbn } (* TODO same *)
+      | IDENT "lazy" -> { Step.Lazy } (* TODO same *)
+    ] ]
+  ;
 
   red_expr:
     [ [ IDENT "red" -> { Red }
       | IDENT "hnf" -> { Hnf }
+      | IDENT "step"; r = reduction -> { Step r }
       | IDENT "simpl"; h = OPT [ IDENT "head" -> { () } ];
         d = delta_flag; po = OPT ref_or_pattern_occ -> { Simpl (all_with ~head:(Option.has_some h) d,po) }
       | IDENT "cbv"; s = strategy_flag -> { Cbv s }

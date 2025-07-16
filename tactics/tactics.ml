@@ -1059,7 +1059,14 @@ let change_of_red_expr_val ?occs redexp =
 let reduce redexp cl =
   let trace env sigma =
     let open Printer in
-    let pr = ((fun e -> pr_econstr_env e), (fun e -> pr_leconstr_env e), pr_evaluable_reference, pr_constr_pattern_env, int) in
+    let pr =
+      (fun e -> pr_econstr_env e),
+      (fun e -> pr_leconstr_env e),
+      pr_evaluable_reference,
+      pr_constr_pattern_env,
+      (fun env (ind, n, m) -> pr_inductive env ind ++ spc () ++ int n ++ spc () ++ int m),
+      int
+    in
     Pp.(hov 2 (Ppred.pr_red_expr_env env sigma pr str redexp))
   in
   Proofview.Goal.enter begin fun gl ->
@@ -1075,6 +1082,7 @@ let reduce redexp cl =
   | Unfold flags ->
     if is_local_unfold env flags then LocalHypConv else StableHypConv
   | Red | Hnf | CbvVm _ | CbvNative _ -> StableHypConv
+  | Step r -> (match r with Delta _ | Root | Head | Cbv | Cbn | Lazy -> StableHypConv | _ -> LocalHypConv)
   | ExtraRedExpr _ -> StableHypConv (* Should we be that lenient ?*)
   in
   let redexp = Redexpr.eval_red_expr env redexp in

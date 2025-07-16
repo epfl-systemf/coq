@@ -1097,6 +1097,76 @@ let map_reduction f g h = function
 | IotaMatch occ -> IotaMatch (h occ)
 | (Root | Head | Cbv | Cbn | Lazy as s) -> s
 
+let interp_zeta env (gr, x) =
+  let zmargs =
+    let open GlobRef in
+    match gr, x with
+    | ConstRef _, Some _ -> user_err (str "Too many arguments to zeta_match.")
+    | ConstRef c, None ->
+      ( try
+          let open Environ in
+          let open Structures in
+          let open Structure in
+          let s = Structure.find_from_projection c in
+          let rec count_binds n = function
+          | { proj_body = Some c'; proj_true = false } :: _ when QConstant.equal env c c' -> Some n
+          | { proj_true = pt } :: l -> count_binds (if pt then n else n + 1) l
+          | _ -> None
+          in
+          match count_binds 0 s.projections with
+          | None -> user_err (str "Projection has no definition to delta reduce.")
+          | Some n -> Some (s.name, Some 1, Some (Locus.ArgArg n))
+        with Not_found -> None
+      )
+    | IndRef ind, x -> Some (ind, None, x)
+    | ConstructRef (ind, n), x -> Some (ind, Some n, x)
+    | _ -> None
+  in
+  ( match zmargs with
+    | None -> user_err (str "Argument of zeta_match is neither a type, constructor, nor projection.")
+    | Some ((ind, tyi), x, y) ->
+      let open Environ in
+      let oib = Array.unsafe_get (lookup_mind ind env).mind_packets tyi in
+      let nbrs = Array.length oib.mind_nf_lc in
+      let n =
+        match x with
+        | Some n -> n - 1
+        | None ->
+          if nbrs != 1 then user_err (str "Use of type as argument for zeta_match is only allowed for types with a single constructor.");
+          0
+      in
+      if n >= nbrs then user_err (str "Invalid branch for zeta_match.");
+      let mib = lookup_mind ind env in
+      let mip = mib.mind_packets.(tyi) in
+      let rec bind_to_index m k = let open Context.Rel.Declaration in function
+      | [] -> user_err (str "Invalid let binding for zeta_match.")
+      | LocalAssum _ :: t -> bind_to_index m (k + 1) t
+      | LocalDef (_, c, _) :: t -> if m != 1 then bind_to_index (m - 1) (k + 1) t else k
+      in
+      let rec no_binding n = let open Context.Rel.Declaration in function
+      | [] -> ()
+      | LocalAssum _ :: t -> no_binding n t
+      | LocalDef (na, c, _) :: t ->
+        if match_binder na n
+        then user_err (str "Non unique let binding for zeta_match.")
+        else no_binding n t
+      in
+      let rec single_binding n k = let open Context.Rel.Declaration in function
+      | [] -> user_err (str "No let binding for zeta_match.")
+      | LocalAssum _ :: t -> single_binding n (k + 1) t
+      | LocalDef (na, c, _) :: t ->
+        if match_binder na n then (no_binding n t; k) else single_binding n (k + 1) t
+      in
+      let m =
+        let bindings = CList.firstn (mip.mind_consnrealdecls.(n)) (fst mip.mind_nf_lc.(n)) in
+        match y with
+        | Some (Locus.ArgArg m) -> bind_to_index m 0 bindings
+        | Some (Locus.ArgVar m) -> single_binding (Some m.v) 0 bindings
+        | None -> single_binding None 0 bindings
+      in
+      (ind, tyi), n, m
+  )
+
 let step red env evm c =
   let f =
     match red with

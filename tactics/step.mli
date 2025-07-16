@@ -30,5 +30,11 @@ type ('a, 'b, 'c) reduction =
 | Cbn (* Next reduction step of a call-by-name strategy *)
 | Lazy (* Next reduction step of a call-by-need / lazy strategy *)
 
-val map_reduction : ('a -> 'd) -> ('b -> 'e) -> ('c Locus.occurrences_gen -> 'f Locus.occurrences_gen) -> ('a, 'b, 'c) reduction -> ('d, 'e, 'f) reduction
-val step : (Names.inductive * int * int, Evaluable.t, int) reduction -> Reductionops.e_reduction_function
+val map_reduction :
+  ('a -> 'd) -> ('b -> 'e) ->
+  ('c Locus.occurrences_gen -> 'f Locus.occurrences_gen) ->
+  ('a, 'b, 'c) reduction -> ('d, 'e, 'f) reduction
+val interp_zeta :
+  Environ.env -> Names.GlobRef.t * int Locus.or_var option -> Names.inductive * int * int
+val step :
+  (Names.inductive * int * int, Evaluable.t, int) reduction -> Reductionops.e_reduction_function
