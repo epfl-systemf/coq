@@ -20,3 +20,4 @@ val occs_nums : Locus.occurrences_expr Entry.t
 val occs : Locus.occurrences_expr Entry.t
 val delta_flag : r_cst red_atom Entry.t
 val strategy_flag : r_cst glob_red_flag Entry.t
+val reduction : (r_cst * (int * int option) option, r_cst, int Locus.or_var) Step.reduction Entry.t

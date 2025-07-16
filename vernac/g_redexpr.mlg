@@ -33,12 +33,13 @@ let occs_nums = Entry.make "occs_nums"
 let occs = Entry.make "occs"
 let delta_flag = Entry.make "delta_flag"
 let strategy_flag = Entry.make "strategy_flag"
+let reduction = Entry.make "reduction"
 }
 
 
 GRAMMAR EXTEND Gram
   GLOBAL: int_or_var nat_or_var occs occs_nums unfold_occ pattern_occ
-    delta_flag strategy_flag ref_or_pattern_occ red_expr;
+    delta_flag strategy_flag reduction ref_or_pattern_occ red_expr;
 
   int_or_var:
     [ [ n = integer  -> { ArgArg n }
@@ -90,10 +91,33 @@ GRAMMAR EXTEND Gram
       | h = OPT [ IDENT "head" -> { () } ]; d = delta_flag -> { all_with ~head:(Option.has_some h) d }
     ] ]
   ;
+  reduction:
+    [ [ IDENT "cast" -> { Step.SRCast AtLeastOneOccurrence }
+      | IDENT "beta" -> { Step.SRBeta AtLeastOneOccurrence }
+      | IDENT "zeta" -> { Step.SRZeta AtLeastOneOccurrence }
+      | IDENT "zeta_match"; pc = smart_global; proj = OPT [ c = natural; d = OPT natural -> { c, d } ]
+        -> { Step.SRZetaMatch ((pc, proj), AtLeastOneOccurrence) }
+      | IDENT "delta"; name = OPT smart_global -> { Step.SRDelta (name, AtLeastOneOccurrence) }
+      | IDENT "eta" -> { Step.SREta }
+      | IDENT "eta'" -> { Step.SREtaPrime AtLeastOneOccurrence }
+      | IDENT "evar" -> { Step.SREvar AtLeastOneOccurrence }
+      | IDENT "fix" -> { Step.SRFix AtLeastOneOccurrence }
+      | IDENT "fix'" -> { Step.SRFixPrime AtLeastOneOccurrence }
+      | IDENT "cofix" -> { Step.SRCofix AtLeastOneOccurrence }
+      | IDENT "cofix'" -> { Step.SRCofixPrime AtLeastOneOccurrence }
+      | IDENT "match" -> { Step.SRMatch AtLeastOneOccurrence }
+      | IDENT "uip" -> { Step.SRUIP AtLeastOneOccurrence }
+      | IDENT "head" -> { Step.SRHead }
+      | IDENT "cbv" -> { Step.SRCbv }
+      | IDENT "cbn" -> { Step.SRCbn }
+      | IDENT "lazy" -> { Step.SRLazy }
+    ] ]
+  ;
 
   red_expr:
     [ [ IDENT "red" -> { Red }
       | IDENT "hnf" -> { Hnf }
+      | IDENT "step"; r = reduction -> { Step r }
       | IDENT "simpl"; h = OPT [ IDENT "head" -> { () } ];
         d = delta_flag; po = OPT ref_or_pattern_occ -> { Simpl (all_with ~head:(Option.has_some h) d,po) }
       | IDENT "cbv"; s = strategy_flag -> { Cbv s }

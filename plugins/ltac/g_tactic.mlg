@@ -608,6 +608,8 @@ GRAMMAR EXTEND Gram
           { CAst.make ~loc @@ TacAtom (TacReduce (Red, cl)) }
       | IDENT "hnf"; cl = clause_dft_concl ->
           { CAst.make ~loc @@ TacAtom (TacReduce (Hnf, cl)) }
+      | IDENT "step"; r = reduction; cl = clause_dft_concl ->
+          { CAst.make ~loc @@ TacAtom (TacReduce (Step r, cl)) }
       | IDENT "simpl"; h = OPT [ IDENT "head" -> { () } ]; d = delta_flag;
         po = OPT ref_or_pattern_occ; cl = clause_dft_concl ->
           { CAst.make ~loc @@ TacAtom (TacReduce (Simpl (all_with ~head:(Option.has_some h) d, po), cl)) }

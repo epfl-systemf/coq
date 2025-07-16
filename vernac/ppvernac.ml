@@ -56,7 +56,13 @@ let pr_spc_lconstr =
 
 let pr_red_expr =
   Ppred.pr_red_expr
-    (pr_constr_expr, pr_lconstr_expr, pr_smart_global, pr_constr_expr, pr_or_var int)
+    ( pr_constr_expr,
+      pr_lconstr_expr,
+      pr_smart_global,
+      pr_constr_expr,
+      (fun (sg, x) -> pr_smart_global sg ++ pr_opt (fun (n, m) -> int n ++ pr_opt int m) x),
+      pr_or_var int
+    )
     keyword
 
 let pr_uconstraint (l, d, r) =

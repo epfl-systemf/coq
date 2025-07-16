@@ -56,6 +56,7 @@ let map_flags f flags =
 let map_occs f (occ,e) = (occ,f e)
 
 let map_red_expr_gen f g h = function
+  | Step s -> Step (Step.map_reduction (fun x -> x) g (fun x -> x) s)
   | Fold l -> Fold (List.map f l)
   | Pattern occs_l -> Pattern (List.map (map_occs f) occs_l)
   | Simpl (flags,occs_o) ->

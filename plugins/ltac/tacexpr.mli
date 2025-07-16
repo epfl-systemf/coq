@@ -123,7 +123,7 @@ type 'a gen_atomic_tactic_expr =
       rec_flag * evars_flag * ('trm,'dtrm,'nam) induction_clause_list
 
   (* Conversion *)
-  | TacReduce of ('trm,'cst,'rpat,'occvar) red_expr_gen * 'nam clause_expr
+  | TacReduce of ('trm,'cst,'rpat,'zeta,'occvar) red_expr_gen * 'nam clause_expr
   | TacChange of check_flag * 'rpat option * 'dtrm * 'nam clause_expr
 
   (* Equality and inversion *)
@@ -143,6 +143,7 @@ constraint 'a = <
     dterm: 'dtrm;
     pattern:'pat;
     red_pattern:'rpat;
+    zeta:'zeta;
     constant:'cst;
     reference:'ref;
     name:'nam;
@@ -153,15 +154,15 @@ constraint 'a = <
 
 (** Possible arguments of a tactic definition *)
 
-type ('a,'b,'c,'occvar) may_eval =
+type ('a,'b,'c,'d,'occvar) may_eval =
   | ConstrTerm of 'a
-  | ConstrEval of ('a,'b,'c,'occvar) red_expr_gen * 'a
+  | ConstrEval of ('a,'b,'c,'d,'occvar) red_expr_gen * 'a
   | ConstrContext of Names.lident * 'a
   | ConstrTypeOf of 'a
 
 type 'a gen_tactic_arg =
   | TacGeneric     of string option * 'lev generic_argument
-  | ConstrMayEval  of ('trm,'cst,'rpat, 'occvar) may_eval
+  | ConstrMayEval  of ('trm,'cst,'rpat,'zeta,'occvar) may_eval
   | Reference      of 'ref
   | TacCall    of ('ref * 'a gen_tactic_arg list) CAst.t
   | TacFreshId of string or_var list
@@ -174,6 +175,7 @@ constraint 'a = <
     dterm: 'dtrm;
     pattern:'pat;
     red_pattern:'rpat;
+    zeta:'zeta;
     constant:'cst;
     reference:'ref;
     name:'nam;
@@ -252,6 +254,7 @@ constraint 'a = <
     dterm: 'dtrm;
     pattern:'p;
     red_pattern:'rp;
+    zeta:'zeta;
     constant:'c;
     reference:'r;
     name:'n;
@@ -268,6 +271,7 @@ constraint 'a = <
     dterm: 'dtrm;
     pattern:'p;
     red_pattern:'rp;
+    zeta:'zeta;
     constant:'c;
     reference:'r;
     name:'n;
@@ -284,6 +288,7 @@ constraint 'a = <
     dterm: 'dtrm;
     pattern:'p;
     red_pattern:'rp;
+    zeta:'zeta;
     constant:'c;
     reference:'r;
     name:'n;
@@ -306,6 +311,7 @@ type g_dispatch =  <
     dterm:g_trm;
     pattern:g_pat;
     red_pattern:g_trm;
+    zeta: GlobRef.t * (int * int option) option;
     constant:g_cst;
     reference:g_ref;
     name:g_nam;
@@ -335,6 +341,7 @@ type r_dispatch =  <
     dterm:r_trm;
     pattern:r_pat;
     red_pattern:r_pat;
+    zeta: r_cst * (int * int option) option;
     constant:r_cst;
     reference:r_ref;
     name:r_nam;
@@ -366,6 +373,7 @@ type t_dispatch =  <
     dterm:g_trm;
     pattern:t_pat;
     red_pattern:t_pat;
+    zeta: GlobRef.t * (int * int option) option;
     constant:t_cst;
     reference:t_ref;
     name:t_nam;

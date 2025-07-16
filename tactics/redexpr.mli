@@ -17,7 +17,7 @@ open Genredexpr
 open Reductionops
 open Locus
 
-type red_expr = (constr, Evaluable.t, constr_pattern, int) red_expr_gen
+type red_expr = (constr, Evaluable.t, constr_pattern, Names.inductive * int * int, int) red_expr_gen
 
 type red_expr_val
 
@@ -75,7 +75,7 @@ module Intern : sig
     pattern_of_glob : Glob_term.glob_constr -> 'pat;
   }
 
-  val intern_red_expr : ('a,'b,'c) intern_env -> raw_red_expr -> ('a,'b,'c, int Locus.or_var) red_expr_gen
+  val intern_red_expr : ('a,'b,'c) intern_env -> raw_red_expr -> ('a,'b,'c, GlobRef.t * (int * int option) option, int Locus.or_var) red_expr_gen
 
   val from_env : Environ.env -> (Glob_term.glob_constr, Evaluable.t, Glob_term.glob_constr) intern_env
 
@@ -95,7 +95,7 @@ module Interp : sig
   }
 
   val interp_red_expr : ('constr,'evref,'pat) interp_env -> Environ.env -> Evd.evar_map
-    -> ('constr,'evref,'pat,int Locus.or_var) red_expr_gen -> Evd.evar_map * red_expr
+    -> ('constr,'evref,'pat,GlobRef.t * (int * int option) option,int Locus.or_var) red_expr_gen -> Evd.evar_map * red_expr
 
   val without_ltac : (Glob_term.glob_constr, Evaluable.t, Glob_term.glob_constr) interp_env
 

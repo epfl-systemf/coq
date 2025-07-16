@@ -1064,6 +1064,7 @@ let reduce redexp cl =
       (fun e -> pr_leconstr_env e),
       pr_evaluable_reference,
       pr_constr_pattern_env,
+      (fun env (ind, n, m) -> pr_inductive env ind ++ spc () ++ int n ++ spc () ++ int m),
       int
     in
     Pp.(hov 2 (Ppred.pr_red_expr_env env sigma pr str redexp))
@@ -1073,7 +1074,8 @@ let reduce redexp cl =
   let sigma = Proofview.Goal.sigma gl in
   let hyps = concrete_clause_of (fun () -> Tacmach.pf_ids_of_hyps gl) cl in
   let nbcl = (if cl.concl_occs = NoOccurrences then 0 else 1) + List.length hyps in
-  let check = match redexp with Fold _ | Pattern _ -> true | _ -> false in
+  (* WIP: Let it be true until I am sure it is correct and doesn't break Qed *)
+  let check = match redexp with Fold _ | Pattern _ -> true | Step _ -> true | _ -> false in
   let reorder = match redexp with
   | Fold _ | Pattern _ -> AnyHypConv
   | Simpl (flags, _) | Cbv flags | Cbn flags | Lazy flags ->
@@ -1081,6 +1083,7 @@ let reduce redexp cl =
   | Unfold flags ->
     if is_local_unfold env flags then LocalHypConv else StableHypConv
   | Red | Hnf | CbvVm _ | CbvNative _ -> StableHypConv
+  | Step r -> (match r with SRDelta _ | SRHead | SRCbv | SRCbn | SRLazy -> StableHypConv | _ -> LocalHypConv)
   | ExtraRedExpr _ -> StableHypConv (* Should we be that lenient ?*)
   in
   let redexp = Redexpr.eval_red_expr env redexp in

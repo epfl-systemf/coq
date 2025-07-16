@@ -127,10 +127,10 @@ let set_strategy local str =
 
 (* Generic reduction: reduction functions used in reduction tactics *)
 
-type red_expr = (constr, Evaluable.t, constr_pattern, int) red_expr_gen
+type red_expr = (constr, Evaluable.t, constr_pattern, inductive * int * int, int) red_expr_gen
 
 type red_expr_val =
-  (constr, Evaluable.t, constr_pattern, int, strength * RedFlags.reds) red_expr_gen0
+  (constr, Evaluable.t, constr_pattern, inductive * int * int, int, strength * RedFlags.reds) red_expr_gen0
 
 let make_flag_constant = function
   | Evaluable.EvalVarRef id -> [fVAR id]
@@ -245,7 +245,7 @@ let rec eval_red_expr env = function
   | e -> eval_red_expr env e
   | exception Not_found -> ExtraRedExpr s (* delay to runtime interpretation *)
   end
-| (Red | Hnf | Unfold _ | Fold _ | Pattern _ | CbvVm _ | CbvNative _) as e -> e
+| (Red | Hnf | Step _ | Unfold _ | Fold _ | Pattern _ | CbvVm _ | CbvNative _) as e -> e
 
 let red_product_exn env sigma c = match red_product env sigma c with
   | None -> user_err Pp.(str "No head constant to reduce.")
@@ -258,6 +258,7 @@ let pattern_occs occs env sigma c = match pattern_occs occs env sigma c with
 let reduction_of_red_expr_val = function
   | Red -> (e_red red_product_exn, DEFAULTcast)
   | Hnf -> (e_red hnf_constr,DEFAULTcast)
+  | Step r -> (Step.step r,DEFAULTcast)
   | Simpl ((w,f),o) ->
     let am = match w, simplIsCbn () with
       | Norm, true -> Cbn.norm_cbn f
@@ -351,6 +352,7 @@ let bind_red_expr_occurrences occs nbcl redexp =
         error_at_in_occurrences_not_supported ()
     | Unfold [] | Pattern [] ->
         assert false
+    | Step s -> Step (Step.map_reduction (fun x -> x) (fun x -> x) (fun _ -> occs) s)
 
 let reduction_of_red_expr_val ?occs r =
   let r = match occs with
@@ -490,7 +492,13 @@ module Intern = struct
 
   let intern_unfold ist (l,qid) = (l,intern_evaluable ist qid)
 
+  let intern_zeta ist = function
+  | {loc;v=Constrexpr.ByNotation (ntn,sc)}, x ->
+    Notation.interp_notation_as_global_reference ?loc ~head:true (fun _ -> true) ntn sc, x
+  | {v=Constrexpr.AN qid}, x -> intern_global_reference_non_local ist qid, x
+
   let intern_red_expr ist = function
+    | Step s -> Step (Step.map_reduction (intern_zeta ist) (intern_evaluable ist) (fun x -> x) s)
     | Unfold l -> Unfold (List.map (intern_unfold ist) l)
     | Fold l -> Fold (List.map ist.intern_constr l)
     | Cbv f -> Cbv (intern_flag ist f)
@@ -562,7 +570,63 @@ module Interp = struct
   let interp_flag ist env sigma red =
     { red with rConst = List.map (interp_evaluable ist env sigma) red.rConst }
 
+  let interp_zeta env (gr, x) =
+    let zmargs =
+      let open GlobRef in
+      match gr, x with
+      | ConstRef c, None ->
+        ( try
+            let open Environ in
+            let open Structures in
+            let open Structure in
+            let s = Structure.find_from_projection c in
+            let rec count_binds n = function
+            | { proj_body = Some c'; proj_true = false } :: _ when QConstant.equal env c c' -> Some n
+            | { proj_true = pt } :: l -> count_binds (if pt then n else n + 1) l
+            | _ -> None
+            in
+            match count_binds 0 s.projections with
+            | None -> user_err (str "Projection has no definition to delta reduce.")
+            | Some n -> Some (s.name, Some (1, Some n))
+          with Not_found -> None
+        )
+      | IndRef ind, x -> Some (ind, x)
+      | ConstructRef _, Some (_, Some _) -> user_err (str "Too many arguments to zeta_match.")
+      | ConstructRef (ind, n), Some (m, None) -> Some (ind, Some (n, Some m))
+      | ConstructRef (ind, n), None -> Some (ind, Some (n, None))
+      | _ -> None
+    in
+    ( match zmargs with
+      | None -> user_err (str "Argument of zeta_match is neither a type, constructor, nor projection.")
+      | Some ((ind, tyi), x) ->
+        let open Environ in
+        let oib = Array.unsafe_get (lookup_mind ind env).mind_packets tyi in
+        let nbrs = Array.length oib.mind_nf_lc in
+        let n, m =
+          match x with
+          | None ->
+            if nbrs != 1 then user_err (str "Zeta_match expects a constructor number.");
+            1, 1
+          | Some (n, None) when 0 < n -> if nbrs = 1 then 1, n else n, 1
+          | Some (n, Some m) when 0 < n && 0 < m -> n, m
+          | _ -> user_err (str "Zeta_match indexes should be greater than 0.")
+        in
+        let n = n - 1 in
+        if n >= nbrs then user_err (str "Invalid branch for zeta_match.");
+        let mib = lookup_mind ind env in
+        let mip = mib.mind_packets.(tyi) in
+        let rec bind_to_index m k = let open Context.Rel.Declaration in function
+        | [] -> user_err (str "Invalid let binding for zeta_match.")
+        | LocalAssum _ :: t -> bind_to_index m (k + 1) t
+        | LocalDef (_, c, _) :: t -> if m != 1 then bind_to_index (m - 1) (k + 1) t else k
+        in
+        (ind, tyi),
+        n,
+        bind_to_index m 0 (CList.firstn (mip.mind_consnrealdecls.(n)) (fst mip.mind_nf_lc.(n)))
+    )
+
   let interp_red_expr ist env sigma = function
+    | Step s -> sigma, Step (Step.map_reduction (interp_zeta env) (interp_evaluable ist env sigma) (interp_occurrences ist) s)
     | Unfold l -> sigma , Unfold (List.map (interp_unfold ist env sigma) l)
     | Fold l ->
       let (sigma,l_interp) = List.fold_left_map (ist.interp_constr_list env) sigma l in
