@@ -78,6 +78,13 @@ val match_subterm : env -> Evd.evar_map ->
   binding_bound_vars * constr_pattern -> constr ->
   matching_result IStream.t
 
+(** [match_open_subterm pat c] returns the substitution and the context
+   corresponding to each subterm of [c] matching [pat],
+   considering application contexts as well. *)
+val match_open_subterm : env -> Evd.evar_map ->
+  binding_bound_vars * constr_pattern -> constr ->
+  matching_result IStream.t
+
 (** [is_matching_appsubterm pat c] tells if a subterm of [c] matches
    against [pat] taking partial subterms into consideration *)
 val is_matching_appsubterm : ?closed:bool -> env -> Evd.evar_map -> constr_pattern -> constr -> bool

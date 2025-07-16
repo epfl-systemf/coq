@@ -260,7 +260,7 @@ module PatternMatching (E:StaticEnvironment) = struct
             | Some nctx -> Proofview.tclOR (k lhs nctx) (fun e -> (map s e).stream k ctx)
         }
       in
-      map (Constr_matching.match_subterm E.env E.sigma p term) imatching_error
+      map (Constr_matching.match_open_subterm E.env E.sigma p term) imatching_error
 
 
   (** [rule_match_term term rule] matches the term [term] with the
