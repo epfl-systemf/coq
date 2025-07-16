@@ -603,6 +603,8 @@ let sub_match ?(closed=true) env sigma pat c =
 
 let match_subterm env sigma pat c = sub_match env sigma pat c
 
+let match_open_subterm env sigma pat c = sub_match ~closed:false env sigma pat c
+
 let is_matching env sigma pat c =
   try let _ = matches env sigma pat c in true
   with PatternMatchingFailure -> false
