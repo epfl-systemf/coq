@@ -134,6 +134,26 @@ type red_flag = red_flag_r CAst.t
 
 type strategy_flag = red_flag list CAst.t
 
+type reduction =
+| QRCast
+| QRBeta
+| QRZeta
+| QRZetaMatch of reference or_anti * (int * int option) option
+| QRDelta of reference or_anti option
+| QREta
+| QREtaPrime
+| QREvar
+| QRFix
+| QRFixPrime
+| QRCofix
+| QRCofixPrime
+| QRMatch
+| QRUIP
+| QRHead
+| QRCbv
+| QRCbn
+| QRLazy
+
 type constr_match_pattern_r =
 | QConstrMatchPattern of Constrexpr.constr_expr
 | QConstrMatchContext of Id.t option * Constrexpr.constr_expr

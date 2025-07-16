@@ -793,6 +793,28 @@ GRAMMAR EXTEND Gram
   q_strategy_flag:
     [ [ flag = strategy_flag -> { flag } ] ]
   ;
+  reduction:
+    [ [ IDENT "cast" -> { CAst.make ~loc @@ QRCast }
+      | IDENT "beta" -> { CAst.make ~loc @@ QRBeta }
+      | IDENT "zeta" -> { CAst.make ~loc @@ QRZeta }
+      | IDENT "zeta_match"; pc = refglobal; proj = OPT [ c = natural; d = OPT natural -> { c, d } ]
+        -> { CAst.make ~loc @@ QRZetaMatch (pc, proj) }
+      | IDENT "delta"; name = OPT refglobal -> { CAst.make ~loc @@ QRDelta name }
+      | IDENT "eta" -> { CAst.make ~loc @@ QREta }
+      | IDENT "eta'" -> { CAst.make ~loc @@ QREtaPrime }
+      | IDENT "evar" -> { CAst.make ~loc @@ QREvar }
+      | IDENT "fix" -> { CAst.make ~loc @@ QRFix }
+      | IDENT "fix'" -> { CAst.make ~loc @@ QRFixPrime }
+      | IDENT "cofix" -> { CAst.make ~loc @@ QRCofix }
+      | IDENT "cofix'" -> { CAst.make ~loc @@ QRCofixPrime }
+      | IDENT "match" -> { CAst.make ~loc @@ QRMatch }
+      | IDENT "uip" -> { CAst.make ~loc @@ QRUIP }
+      | IDENT "head" -> { CAst.make ~loc @@ QRHead }
+      | IDENT "cbv" -> { CAst.make ~loc @@ QRCbv }
+      | IDENT "cbn" -> { CAst.make ~loc @@ QRCbn }
+      | IDENT "lazy" -> { CAst.make ~loc @@ QRLazy }
+    ] ]
+  ;
   hintdb:
     [ [ "*" -> { CAst.make ~loc @@ QHintAll }
       | l = LIST1 ident_or_anti -> { CAst.make ~loc @@ QHintDbs l }
