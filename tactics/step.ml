@@ -222,6 +222,327 @@ let unlift c =
     | _ -> map_with_binders succ aux n c
   in try Some (aux 1 c) with DestKO -> None
 
+(* ZIPPERS *)
+
+(*
+(* Evar context zipper *)
+module TermSListZipper = struct
+  open SList
+
+  type t =
+  { left: constr SList.t;
+    right: constr SList.t;
+    (* keep old term and slist to preserve sharing *)
+    cache: constr option;
+  }
+
+  let make =
+    let rec aux acc = function
+    | Nil -> None
+    | Cons (h, t) -> Some {left = acc; right = t; cache = Some h}
+    | Default (n, t) -> aux (SList.defaultn n acc) t
+    in aux empty
+
+  let update_cache old t c = Option.bind c (fun h -> if old == h then Some t else None)
+
+  let rec rev_append acc = function
+  | Nil -> acc
+  | Cons (h, t) -> rev_append (cons h acc) t
+  | Default (n, t) -> rev_append (defaultn n acc) t
+
+  let unzip {left; right; cache} t =
+    match cache with
+    | Some h when t == h -> None
+    | _ -> Some (rev_append (SList.cons t right) left)
+
+  let rec unzip_one acc = function
+  | SList.Nil -> Result.Error acc
+  | SList.Cons (h, t) -> Result.Ok (t, h, acc)
+  | SList.Default (n, t) -> unzip_one (SList.defaultn n acc) t
+
+  let move {left; right; cache} t d =
+    let use_cache t sl =
+      match cache with
+      | Some h when t == h -> Result.Error None
+      | _ -> Result.Error (Some sl)
+    in match d with
+    | Either.Left () ->
+      ( match unzip_one (cons t right) left with
+      | Result.Ok (left, h, right) -> Result.Ok ({left; right; cache = update_cache t h cache}, h)
+      | Result.Error sl -> use_cache t sl
+      )
+    | Either.Right () ->
+      ( match unzip_one (cons t left) right with
+      | Result.Ok (right, h, left) -> Result.Ok ({left; right; cache = update_cache t h cache}, h)
+      | Result.Error sl -> use_cache t sl
+      )
+
+  let _ = make, unzip, move
+end
+
+module TermZipper = struct
+  type 't tern_pos = TLeft of 't | TMiddle | TRight
+  type case_pos = CMatchee | CParams of int | CArity | CBranch of int
+
+  (* zipper keeping old term to preserve sharing *)
+  type context =
+  | CEvar   or Evar.t (* Looking at evar ctx zipper *)
+  | CEvarC  or TermSListZipper.t (* Looking at part of the evar ctx *)
+  | CCast   of constr * cast_kind * types (* Never touch cast type *)
+  | CProd   of (unit, unit) Either.t * Name.t binder_annot * types * types
+  | CLambda of (unit, unit) Either.t * Name.t binder_annot * types * constr
+  | CLetIn  of unit tern_pos * Name.t binder_annot * constr * types * constr
+  | CApp    of (unit, int) Either.t * constr * constr array
+  | CCase   of case_pos * case
+  | CFix    of (int, int) Either.t * fixpoint
+  | CCoFix  of (int, int) Either.t * cofixpoint
+  | CProj   of Projection.t * Sorts.relevance * constr
+  | CArray  of int tern_pos * UVars.Instance.t * constr array * constr * types
+
+  type t =
+  { rel_ctx: rel_context;
+    ctx: (constr * context) list;
+  }
+
+  let make = {rel_ctx = []; ctx = []}
+
+  let make_open rel_ctx = {rel_ctx; ctx = []}
+
+(* TODO
+  let make_evar evm ctx (ev, sl) = Evd.existential_opt_value0 evm (ev, sl)
+*)
+
+  let unzip_evar ev z t =
+    Option.map (fun sl -> mkEvar (ev, sl)) (TermSListZipper.unzip z t)
+
+  let unzip_cast c k t x = if x == c then None else Some (mkCast (x, k, t))
+
+  let unzip_prod na k t x = function
+  | Either.Left () -> if x == k then None else Some (mkProd (na, x, t))
+  | Either.Right () -> if x == t then None else Some (mkProd (na, k, x))
+
+  let unzip_lambda na t c x = function
+  | Either.Left () -> if x == t then None else Some (mkLambda (na, x, c))
+  | Either.Right () -> if x == c then None else Some (mkLambda (na, t, x))
+
+  let unzip_letin na b t c x = function
+  | TLeft () -> if x == t then None else Some (mkLetIn (na, b, x, c))
+  | TMiddle -> if x == b then None else Some (mkLetIn (na, x, t, c))
+  | TRight -> if x == c then None else Some (mkLetIn (na, b, t, x))
+
+  let unzip_app head args x = function
+  | Either.Left () -> if x == head then None else Some (mkApp (x, args))
+  | Either.Right n ->
+    if x == args.(n) then None else Some (mkApp (head, array_with args n x))
+
+  let unzip_case (ci, u, pms, p, iv, c, brs) x = function
+  | CMatchee ->
+    if x == c then None else Some (mkCase (ci, u, pms, p, iv, x, brs))
+  | CParams n ->
+    if x == pms.(n) then None
+    else Some (mkCase (ci, u, array_with pms n x, p, iv, c, brs))
+  | CArity ->
+    let p, r = p in
+    if x == snd p then None
+    else Some (mkCase (ci, u, pms, ((fst p, x), r), iv, c, brs))
+  | CBranch n ->
+    if x == brs.(n) then None
+    else Some (mkCase (ci, u, pms, p, iv, c, array_with brs n x))
+
+  let unzip_fix (si, (nas, tys, bds)) x = function
+  | Either.Left n ->
+    if x == tys.(n) then None
+    else Some (mkFix (si, (nas, array_with tys n x, bds)))
+  | Either.Right n ->
+    if x == bds.(n) then None
+    else Some (mkFix (si, (nas, tys, array_with bds n x)))
+
+  let unzip_cofix (ri, (nas, tys, bds)) x = function
+  | Either.Left n ->
+    if x == tys.(n) then None
+    else Some (mkCoFix (ri, (nas, array_with tys n x, bds)))
+  | Either.Right n ->
+    if x == bds.(n) then None
+    else Some (mkCoFix (ri, (nas, tys, array_with bds n x)))
+
+  let unzip_proj pn r c x = if x == c then None else Some (mkProj (pn, r, x))
+
+  let unzip_array u ts def ty x = function
+  | TLeft n ->
+    if x == ts.(n) then None else Some (mkArray (u, array_with ts n x, def, ty))
+  | TMiddle -> if x == def then None else Some (mkArray (u, ts, x, ty))
+  | TRight -> if x == ty then None else Some (mkArray (u, ts, def, x))
+
+  let unzip_one_cache x = function
+  | CEvar _ | CEvarC _ -> anomaly "Evar context must be unzipped separately"
+  | CCast (c, k, t) -> unzip_cast c k t x
+  | CProd (p, na, k, t) -> unzip_prod na k t x p
+  | CLambda (p, na, t, c) -> unzip_lambda na t c x p
+  | CLetIn (p, na, b, t, c) -> unzip_letin na b t c x p
+  | CApp (p, head, args) -> unzip_app head args x p
+  | CCase (p, case) -> unzip_case case x p
+  | CFix (p, fix) -> unzip_fix fix x p
+  | CCoFix (p, cofix) -> unzip_cofix cofix x p
+  | CProj (pn, r, c) -> unzip_proj pn r c x
+  | CArray (p, u, ts, def, ty) -> unzip_array u ts def ty x p
+
+  let unzip_one_no_cache x = function
+  | CEvar _ | CEvarC _ -> anomaly "Evar context must be unzipped separately"
+  | CCast (c, k, t) -> mkCast (x, k, t)
+  | CProd (p, na, k, t) ->
+    ( match p with
+    | Either.Left () -> mkProd (na, x, t)
+    | Either.Right () -> mkProd (na, k, x)
+    )
+  | CLambda (p, na, t, c) ->
+    ( match p with
+    | Either.Left () -> mkLambda (na, x, c)
+    | Either.Right () -> mkLambda (na, t, x)
+    )
+  | CLetIn (p, na, b, t, c) ->
+    ( match p with
+    | TLeft () -> mkLetIn (na, b, x, c)
+    | TMiddle -> mkLetIn (na, x, t, c)
+    | TRight -> mkLetIn (na, b, t, x)
+    )
+  | CApp (p, head, args) ->
+    ( match p with
+    | Either.Left () -> mkApp (x, args)
+    | Either.Right n -> mkApp (head, array_with args n x)
+    )
+  | CCase (p, (ci, u, pms, p, iv, c, brs)) ->
+    ( match p with
+    | CMatchee -> mkCase (ci, u, pms, p, iv, x, brs)
+    | CParams n -> mkCase (ci, u, array_with pms n x, p, iv, c, brs)
+    | CArity -> let p, r = p in mkCase (ci, u, pms, ((fst p, x), r), iv, c, brs)
+    | CBranch n -> mkCase (ci, u, pms, p, iv, c, array_with brs n x)
+    )
+  | CFix (p, (si, (nas, tys, bds))) ->
+    ( match p with
+    | Either.Left n -> mkFix (si, (nas, array_with tys n x, bds))
+    | Either.Right n -> mkFix (si, (nas, tys, array_with bds n x))
+    )
+  | CCoFix (p, (ri, (nas, tys, bds))) ->
+    ( match p with
+    | Either.Left n -> mkCoFix (ri, (nas, array_with tys n x, bds))
+    | Either.Right n -> mkCoFix (ri, (nas, tys, array_with bds n x))
+    )
+  | CProj (pn, r, c) -> mkProj (pn, r, x)
+  | CArray (p, u, ts, def, ty) ->
+    match p with
+    | TLeft n -> mkArray (u, array_with ts n x, def, ty)
+    | TMiddle -> mkArray (u, ts, x, ty)
+    | TRight -> mkArray (u, ts, def, x)
+
+  let unzip {rel_ctx; ctx} t =
+    let rec aux_no_cache x = function
+    | [] -> x
+    | (_, CEvarC z) :: (_, CEvar ev) :: t ->
+      aux_no_cache
+        (mkEvar (ev, TermSListZipper.(rev_append (SList.cons x z.right) z.left)))
+        t
+    | (_, h) :: t -> aux_no_cache (unzip_one_no_cache x h) t
+    let rec aux x = function
+    | [] -> x
+    | (_, CEvarC z) :: (c, CEvar ev) :: t ->
+      ( match unzip_evar ev z x with
+      | Some x -> aux_no_cache x t
+      | None -> aux c t
+      )
+    | (c, h) :: t ->
+      match unzip_one_cache x h with
+      | Some x -> aux_no_cache x t
+      | None -> aux c t
+    in aux t ctx
+
+  (* TODO
+  let move_up {rel_ctx; ctx} t =
+
+  let zip_evar (ev, sl) =
+  *)
+
+  let _ = make, make_open, (* make_evar, *) unzip
+end
+
+(* TODO
+module TermReduction = struct
+  type red_rel = RRBetaZeta | RREta
+  type red_lambda = RLBeta | RLEta
+  type red_app = RABetaFix | RAEta1 | RAEta2 | RAMatch | RADeltaPrim | RACofix
+  type red_const = RCDelta | RCDeltaPrim? | RCRule ...
+  type red_construct = RCMatchProj | RCEta | RCFix | RCCofix
+  type red_case = RCMatchCofix | RCUIP | RCZeta ...
+  type red_proj = RPProj | RPEta
+end
+*)
+
+module TermVisitor = struct
+  type 'm direction = Up | Down of 'm
+
+  type term_neutral_leaf =
+  | NLMeta of metavariable
+  | NLSort of Sorts.t
+  | NLInd of (inductive * Instance.t)
+  | NLInt of Uint63.t
+  | NLFloat of Float64.t
+  | NLString of Pstring.t
+
+  type ('m, 'r) action =
+  | AMove of 'm * t option
+  | AReduce of 'r * t option
+  | AStop
+  and 'm move_action =
+  | MMove of 'm * t option
+  | MStop
+  and t =
+  { visit_neutral_leaf: term_neutral_leaf -> TermZipper.t -> unit move_action
+    visit_rel: int -> TermZipper.t -> (unit, red_rel) action
+    visit_var: Id.t -> TermZipper.t -> (unit, unit) action
+    visit_evar: existential -> TermZipper.t -> (unit direction, unit) action
+    visit_evar_context: constr -> TermSListZipper.t -> TermZipper.t -> unit tern_pos direction move_action
+    visit_cast: constr * cast_kind * types -> TermZipper.t -> (unit direction, unit) action
+    visit_prod: Name.t binder_annot * types * types -> TermZipper.t -> (unit, unit) Either.t direction move_action
+    visit_lambda: Name.t binder_annot * types * constr -> TermZipper.t -> ((unit, unit) Either.t direction, red_lambda) action
+    visit_letin: Name.t binder_annot * 'constr * types * constr -> TermZipper.t -> (unit tern_pos direction, unit) action
+    visit_app: constr * constr array -> TermZipper.t -> ((unit, int) Either.t direction, red_app) action
+    visit_const: Constant.t * Sorts.t -> TermZipper.t -> (unit, red_const) action
+    visit_construct: constructor * Instance.t -> TermZipper.t -> (unit, red_construct) action
+    visit_case: case -> TermZipper.t -> (case_pos direction, red_case) action
+    visit_fix: fixpoint -> TermZipper.t -> ((int, int) Either.t direction, unit) action
+    visit_cofix: cofixpoint -> TermZipper.t -> ((int, int) Either.t direction, unit) action
+    visit_proj: Projection.t * Sorts.relevance * constr -> TermZipper.t -> (unit direction, red_proj) action
+    visit_array: UVars.Instance.t * constr array * constr * types -> TermZipper.t -> int tern_pos direction move_action
+  }
+
+  (* TODO
+  let visit t c =
+    match kind c of
+    | Rel i -> 
+    | Var id -> 
+    | Meta m -> 
+    | Evar ev -> 
+    | Sort s -> 
+    | Cast (b, k, t) -> 
+    | Prod (na, t, b) -> 
+    | Lambda (na, t, b) -> 
+    | LetIn (na, bo, t, b) -> 
+    | App (h, al) -> 
+    | Const sp -> 
+    | Ind ind -> 
+    | Construct c -> 
+    | Case (ci, u, pms, p, iv, b, bl) -> 
+    | Fix f -> 
+    | CoFix cf -> 
+    | Proj (p, r, b) -> 
+    | Int i -> 
+    | Float f -> 
+    | String s -> 
+    | Array (u, t, def, ty) -> 
+  *)
+end
+
+*)
+
 (* COMMON REDUCTION PROCEDURES *)
 
 (* No need to case on args, of_kind already ensures invariants *)
